@@ -36,51 +36,36 @@ struct CliInput {
     /// Descriptor in UR format or in bitcoin core compatible format
     #[clap(short = 'd')]
     descriptor: Option<String>,
+    /// Change descriptor in UR format or in bitcoin core compatible format
+    #[clap(short = 'c')]
+    descriptor_chg: Option<String>,
+    /// Address gap limit to search through descriptors for available funds
     #[clap(short = 'g')]
     address_gap_limit: Option<u32>,
+    /// Address in UR format or in bitcoin core compatible format
     #[clap(short)]
     address: String,
 }
 
 fn main() -> Result<(), bdk::Error> {
-    /*
-        let address_ur =
-            "ur:crypto-address/oyaxghktrswzbnhnvwcpurpkeogdsrndaxbkhlaegllsnyolrsemgu".to_string();
-
-        //let address_ur_ethereum = "ur:crypto-address/oeadtaadehoeadcsfnaoadaxghlyrlvtmyihryykielnamspnlmkptsflyieeskofllosfeecf".to_owned();
-
-        let address_ur = "ur:crypto-address/oeahtaadehoyaoadaxhfaebbvenlpddrnydpdlkbrtlplffdtsgueektdrpfuodlbyonsbdw".to_string();
-
-        let address_ur = "ur:crypto-address/oeahtaadehoyaoadaxhfaebbdydwahwkvtdewttsdnkshflgykrdmdhsfycwlyatfytabzia".to_string();
-
-        decode_ur_address(address_ur);
-
-    */
     let opt = CliInput::parse();
 
-    // let descriptor = opt.descriptor.unwrap();
-
-    let descriptor = if let Some(desc) = opt.descriptor {
+    let descriptor = if let Some(ref desc) = opt.descriptor {
         desc
     } else {
-        panic!("UR descriptor cannot be currently passed via STDIN. Pass it as an CLI arg")
+        panic!("UR descriptor cannot be currently passed via STDIN. Pass it as a CLI arg")
     };
 
-    // create a change descriptor TODO: make a function   NOT OK!
-    let mut descriptor_chg = descriptor.clone();
-    descriptor_chg.pop();
-    descriptor_chg.pop();
-    descriptor_chg.pop();
-    descriptor_chg.pop();
-    descriptor_chg.push('1');
-    descriptor_chg.push('/');
-    descriptor_chg.push('*');
-    descriptor_chg.push(')');
+    let descriptor_chg = if let Some(ref d) = opt.descriptor_chg {
+        Some(d)
+    } else {
+        None
+    };
 
     let client = Client::new("ssl://electrum.blockstream.info:60002")?;
     let wallet = Wallet::new(
-        &descriptor,
-        Some(&descriptor_chg),
+        descriptor,
+        descriptor_chg,
         bdk::bitcoin::Network::Testnet,
         MemoryDatabase::default(),
         ElectrumBlockchain::from(client),
