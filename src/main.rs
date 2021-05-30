@@ -1,9 +1,9 @@
 use bdk::bitcoin::consensus::serialize;
 use bdk::bitcoin::Address;
+use bdk::blockchain::Blockchain;
 use bdk::blockchain::{noop_progress, ElectrumBlockchain};
 use bdk::database::MemoryDatabase;
 use bdk::electrum_client::Client;
-use bdk::FeeRate;
 use bdk::Wallet;
 use clap::Clap;
 use serde::{Deserialize, Serialize};
@@ -45,6 +45,9 @@ struct CliInput {
     /// Address in UR format or in bitcoin core compatible format. UR format is unstable atm.
     #[clap(short)]
     address: String,
+    /// Target (number of blocks) to estimate fee rate
+    #[clap(short, default_value = "6")]
+    target: usize,
 }
 
 fn main() -> Result<(), bdk::Error> {
@@ -75,6 +78,7 @@ fn main() -> Result<(), bdk::Error> {
     };
 
     let client = Client::new("ssl://electrum.blockstream.info:60002")?;
+
     let wallet = Wallet::new(
         &descriptor,
         Some(&descriptor_chg),
@@ -82,6 +86,8 @@ fn main() -> Result<(), bdk::Error> {
         MemoryDatabase::default(),
         ElectrumBlockchain::from(client),
     )?;
+
+    let feerate = wallet.client().estimate_fee(opt.target).unwrap();
 
     wallet.sync(noop_progress(), opt.address_gap_limit)?;
 
@@ -97,7 +103,7 @@ fn main() -> Result<(), bdk::Error> {
         builder
             .set_single_recipient(addr.script_pubkey())
             .enable_rbf()
-            .fee_rate(FeeRate::from_sat_per_vb(5.0)); // TODO lookup for optimal fee
+            .fee_rate(feerate);
         builder.finish()?
     };
 
