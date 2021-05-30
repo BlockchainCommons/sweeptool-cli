@@ -196,7 +196,6 @@ pub struct EcKey {
 
 impl<'a> Deserialize<'a> for EcKey {
     fn deserialize<D: serde::de::Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
-        println!("HERE!");
         // spec: https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-008-eckey.md
         // Note: hashmap could have bytestrings as values, but here integer works according to cryptoconinfo spec
         //let tagged = Tagged::<HashMap<u8, &[u8]>>::deserialize(deserializer)?;
@@ -373,6 +372,21 @@ pub fn decode_ur_address(ur: String) -> bdk::bitcoin::Address {
         ),
         network: network,
     }
+}
+
+pub fn parse_ur_descriptor(ur: String) -> Option<String> {
+    if !ur.starts_with("ur:crypto-output") {
+        return None;
+    }
+
+    let (_key, val) = ur.split_once(':').unwrap(); // TODO check key == ur
+    let (_key, val) = val.split_once('/').unwrap(); // TODO check key == crypto-address
+    let mut cbor = bytewords::decode(&val, &bytewords::Style::Minimal).unwrap();
+
+    let data: Value = serde_cbor::from_slice(&cbor).unwrap();
+    let mut ur_out = String::new();
+    parse_ur_desc(data, &mut ur_out);
+    Some(ur_out)
 }
 
 pub fn parse_ur_desc(val: Value, out: &mut String) -> Option<Box<Value>> {

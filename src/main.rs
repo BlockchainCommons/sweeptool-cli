@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 mod ur;
-use ur::{decode_ur_address, is_ur_address, psbt_as_ur};
+use ur::{decode_ur_address, is_ur_address, parse_ur_descriptor, psbt_as_ur};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Psbt {
@@ -42,7 +42,7 @@ struct CliInput {
     /// Address gap limit to search through descriptors for available funds
     #[clap(short = 'g')]
     address_gap_limit: Option<u32>,
-    /// Address in UR format or in bitcoin core compatible format
+    /// Address in UR format or in bitcoin core compatible format. UR format is unstable atm.
     #[clap(short)]
     address: String,
 }
@@ -51,21 +51,33 @@ fn main() -> Result<(), bdk::Error> {
     let opt = CliInput::parse();
 
     let descriptor = if let Some(ref desc) = opt.descriptor {
-        desc
+        if let Some(d) = parse_ur_descriptor(desc.to_string()) {
+            // this is UR format
+            d
+        } else {
+            // this is bitcoin core compatible format
+            desc.to_string()
+        }
     } else {
         panic!("UR descriptor cannot be currently passed via STDIN. Pass it as a CLI arg")
     };
 
-    let descriptor_chg = if let Some(ref d) = opt.descriptor_chg {
-        Some(d)
+    let descriptor_chg = if let Some(ref desc) = opt.descriptor_chg {
+        if let Some(d) = parse_ur_descriptor(desc.to_string()) {
+            // this is UR format
+            d
+        } else {
+            // this is bitcoin core compatible format
+            desc.to_string()
+        }
     } else {
-        None
+        panic!("UR change descriptor cannot be currently passed via STDIN. Pass it as a CLI arg")
     };
 
     let client = Client::new("ssl://electrum.blockstream.info:60002")?;
     let wallet = Wallet::new(
-        descriptor,
-        descriptor_chg,
+        &descriptor,
+        Some(&descriptor_chg),
         bdk::bitcoin::Network::Testnet,
         MemoryDatabase::default(),
         ElectrumBlockchain::from(client),
