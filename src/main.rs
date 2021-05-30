@@ -48,6 +48,9 @@ struct CliInput {
     /// Target (number of blocks) to estimate fee rate
     #[clap(short, default_value = "6")]
     target: usize,
+    /// Bitcoin network
+    #[clap(short, default_value = "testnet", possible_values=&["mainnet", "testnet"])]
+    network: String,
 }
 
 fn main() -> Result<(), bdk::Error> {
@@ -79,10 +82,16 @@ fn main() -> Result<(), bdk::Error> {
 
     let client = Client::new("ssl://electrum.blockstream.info:60002")?;
 
+    let netw = if opt.network == "mainnet" {
+        bdk::bitcoin::Network::Bitcoin
+    } else {
+        bdk::bitcoin::Network::Testnet
+    };
+
     let wallet = Wallet::new(
         &descriptor,
         Some(&descriptor_chg),
-        bdk::bitcoin::Network::Testnet,
+        netw,
         MemoryDatabase::default(),
         ElectrumBlockchain::from(client),
     )?;
