@@ -1,26 +1,49 @@
-# Blockchain Commons `$projectname`
+# Blockchain Commons `sweeptool-cli`
 
-<!--Guidelines: https://github.com/BlockchainCommons/secure-template/wiki -->
 
-### _by $major-authors_
+### _by [Gorazd Kovacic](https://www.github.com/gorazdko) and [Christopher Allen](https://www.github.com/ChristopherA)_
 
-**`$ProjectDescription`** is …
+Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoindevkit/bdk) and [Uniform Resources](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-005-ur.md).
 
-## Additional Information
-
-The following files contain…
-
-* `$ListOfEssentialDocs`
 
 ## Status - Late Alpha
 
-` $projectname`  is currently under active development and in the late alpha testing phase. It should not be used for production tasks until it has had further testing and auditing.
+` sweeptool-cli`  is currently under active development and in the late alpha testing phase. It should not be used for production tasks until it has had further testing and auditing.
 
 ### Roadmap
 
+- [ ] sweep funds from descriptor to an address
+- [ ] sweep funds from descriptor to another descriptor
+- [ ] cli support for URs (btc descriptor, btc address, psbt)
+
 ## Prerequisites
 
+Make sure you have [Rust and Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed.
+
 ## Installation Instructions
+
+In the project root run:
+
+```bash
+$ cargo run
+```
+
+This will build and run the executable.
+
+To run tests:
+
+```bash
+$ cargo test
+```
+
+Alternatively, you can build the executable like so
+
+```bash
+$ cargo build
+```
+
+It will be generated in `target/debug/`
+
 
 ## Usage Instructions
 
@@ -38,35 +61,33 @@ This table below also establishes provenance (repository of origin, permalink, a
 
 ### Dependencies
 
-To build  `$projectname` you'll need to use the following tools:
+To build  `sweeptool-cli` you'll need to use the following tools:
 
 - autotools - Gnu Build System from Free Software Foundation ([intro](https://www.gnu.org/software/automake/manual/html_node/Autotools-Introduction.html)).
 
 ### Libraries
 
-The following external libraries are used with `$projectname`:
+The following external libraries are used with `sweeptool-cli`:
 
-- [community/repo-name](https://github.com/community/repo-name) — What the library does (use OR fork [version] OR include [version]).
-
-Libraries may be marked as `use` (the current version of the library is used), `fork` (a specific version has been forked to the BCC repos for usage), or `include` (files from a specific version have been included).
+External libraries are listed in [cargo.toml]().
 
 ### Derived from ...
 
-This  `$projectname` project is either derived from or was inspired by:
+This  `sweeptool-cli` project is either derived from or was inspired by:
 
-- [community/repo-name/](https://github.com/community/repo-name) — Repo that does what, by [developer](https://github.com/developer)  or from  [community](https://community.com).
+ * [Bitcoin Dev Kit](https://github.com/bitcoindevkit/bdk) - A modern, lightweight, descriptor-based wallet library written in Rust
 
 ## Subsequent Usage
 
 ### Adapted by ...
 
-These are adaptations, conversions, and wrappers that make `$projectname` available for other languages:
+These are adaptations, conversions, and wrappers that make `sweeptool-cli` available for other languages:
 
 - [community/repo-name/](https://github.com/community/repo-name) — Repo that does what, by [developer](https://github.com/developer)  or from  [community](https://community.com)(language).
 
 ### Used by ...
 
-These are other projects that directly use `$projectname`:
+These are other projects that directly use `sweeptool-cli`:
 
 - [community/repo-name/](https://github.com/community/repo-name) — Repo that does what, by [developer](https://github.com/developer)  or from  [community](https://community.com)(use OR fork [version] OR include [version]).
 
@@ -74,19 +95,19 @@ Libraries may be marked as `use` (the current version of our repo is used), `for
 
 ### Used with ...
 
-These are other projects that work with or leverage `$projectname`:
+These are other projects that work with or leverage `sweeptool-cli`:
 
 - [community/repo-name/](https://github.com/community/repo-name) — Repo that does what, by [developer](https://github.com/developer)  or from  [community](https://community.com).
 
 ## Financial Support
 
-`$projectname` is a project of [Blockchain Commons](https://www.blockchaincommons.com/). We are proudly a "not-for-profit" social benefit corporation committed to open source & open development. Our work is funded entirely by donations and collaborative partnerships with people like you. Every contribution will be spent on building open tools, technologies, and techniques that sustain and advance blockchain and internet security infrastructure and promote an open web.
+`sweeptool-cli` is a project of [Blockchain Commons](https://www.blockchaincommons.com/). We are proudly a "not-for-profit" social benefit corporation committed to open source & open development. Our work is funded entirely by donations and collaborative partnerships with people like you. Every contribution will be spent on building open tools, technologies, and techniques that sustain and advance blockchain and internet security infrastructure and promote an open web.
 
-To financially support further development of `$projectname` and other projects, please consider becoming a Patron of Blockchain Commons through ongoing monthly patronage as a [GitHub Sponsor](https://github.com/sponsors/BlockchainCommons). You can also support Blockchain Commons with bitcoins at our [BTCPay Server](https://btcpay.blockchaincommons.com/).
+To financially support further development of `sweeptool-cli` and other projects, please consider becoming a Patron of Blockchain Commons through ongoing monthly patronage as a [GitHub Sponsor](https://github.com/sponsors/BlockchainCommons). You can also support Blockchain Commons with bitcoins at our [BTCPay Server](https://btcpay.blockchaincommons.com/).
 
 ### Project Sponsors
 
-Thanks to our project sponsors for their support of `$projectname`:
+Thanks to our project sponsors for their support of `sweeptool-cli`:
 
 $sponsor-logo-with-link
 

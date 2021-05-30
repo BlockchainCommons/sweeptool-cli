@@ -1,0 +1,21 @@
+[package]
+name = "sweeptool-cli"
+version = "0.1.0"
+authors = ["gorazdko <gorazdko@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies]
+clap = "3.0.0-beta.2"
+bdk = { version = "0.6.0", features = ["all-keys"]}
+base64 = "^0.11"
+serde_json = {version="1.0", features = ["preserve_order"]}
+serde = { version = "1.0", features = ["derive"] }
+# TODO pull from crates.io when available:
+ur-rs = { git = "https://github.com/dspicher/ur-rs", rev = "edc32680f0f9e82705ffb8e812f91b8347d9edca" }
+cbor = "0.4.1"
+serde_cbor = {version="0.11.1", features = ["tags"]}
+hex = "0.4"
+serde_bytes="0.11.5"
