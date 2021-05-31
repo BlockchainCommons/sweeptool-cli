@@ -11,7 +11,7 @@ use crate::errors::SweepError;
 
 pub fn psbt_as_ur(psbt: Vec<u8>) -> Result<String, SweepError> {
     use serde_cbor::to_vec;
-    let arr = Value::Bytes(psbt.clone());
+    let arr = Value::Bytes(psbt);
     let psbt_ = to_vec(&arr)?;
     let bytewrds = bytewords::encode(&psbt_, &bytewords::Style::Minimal);
     let psbt_ur = "ur:crypto-psbt/".to_owned() + &bytewrds;
@@ -67,7 +67,7 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath2 {
         // TODO: uint31 = uint32 .lt 0x80000000
         if let Value::Tag(_number, val_nxt) = tagged {
             // TODO assert number
-            if let Value::Map(m) = *val_nxt.clone() {
+            if let Value::Map(m) = *val_nxt {
                 let arr = m.get(&Value::Integer(1)).unwrap_or(&Value::Integer(0)); // this will skip parsing array in the next step
                 if let Value::Array(a) = arr {
                     for i in 0..a.len() - 1 {
@@ -118,7 +118,7 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
         // TODO: uint31 = uint32 .lt 0x80000000
         if let Value::Tag(_number, val_nxt) = tagged {
             // TODO assert number
-            if let Value::Map(m) = *val_nxt.clone() {
+            if let Value::Map(m) = *val_nxt {
                 let arr = m.get(&Value::Integer(1)).unwrap_or(&Value::Integer(0)); // this will skip parsing array in the next step
                 if let Value::Array(a) = arr {
                     for i in 0..a.len() - 1 {
@@ -165,7 +165,7 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
                         }
 
                         if i == a.len() - 1 - 1 {
-                            obj.components_str.push_str("]");
+                            obj.components_str.push(']');
                         }
                     }
                     let source_fingerprint = m.get(&Value::Integer(2));
@@ -213,11 +213,11 @@ impl<'a> Deserialize<'a> for EcKey {
         };
 
         if let Value::Tag(_number, val_nxt) = tagged {
-            if let Value::Map(m) = *val_nxt.clone() {
+            if let Value::Map(m) = *val_nxt {
                 // TODO: check for 1 and 2 integers
                 let data = m
                     .get(&Value::Integer(3))
-                    .ok_or(serde::de::Error::custom("EcKey: missing data"))?;
+                    .ok_or_else(|| serde::de::Error::custom("EcKey: missing data"))?;
                 if let Value::Bytes(b) = data.clone() {
                     obj.data = b;
                 }
@@ -341,14 +341,12 @@ pub fn is_ur_address(ur: String) -> bool {
 }
 
 pub fn _decode_ur_address(ur: String) -> Result<bdk::bitcoin::Address, SweepError> {
-    let (_key, val) = ur.split_once(':').ok_or(SweepError::new(
-        "ur address".to_string(),
-        "missing :".to_string(),
-    ))?;
-    let (_key, val) = val.split_once('/').ok_or(SweepError::new(
-        "ur address".to_string(),
-        "missing /".to_string(),
-    ))?;
+    let (_key, val) = ur
+        .split_once(':')
+        .ok_or_else(|| SweepError::new("ur address".to_string(), "missing :".to_string()))?;
+    let (_key, val) = val
+        .split_once('/')
+        .ok_or_else(|| SweepError::new("ur address".to_string(), "missing /".to_string()))?;
     let mut cbor = bytewords::decode(&val, &bytewords::Style::Minimal)?;
     let cbor: CborAddress = serde_cbor::de::from_mut_slice(&mut cbor[..])?;
     let data = cbor.data.to_vec(); // pubkeyhash
@@ -385,7 +383,7 @@ pub fn _decode_ur_address(ur: String) -> Result<bdk::bitcoin::Address, SweepErro
         payload: bdk::bitcoin::util::address::Payload::PubkeyHash(
             bdk::bitcoin::hash_types::PubkeyHash::from_slice(&data).unwrap(),
         ),
-        network: network,
+        network,
     })
 }
 
@@ -445,16 +443,16 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Result<Box<Value>, SweepEr
                     network: bdk::bitcoin::Network::try_from(net).map_err(|_| {
                         SweepError::new("xpub".to_string(), "wrong network".to_string())
                     })?,
-                    depth: depth,
+                    depth,
                     parent_fingerprint: bdk::bitcoin::util::bip32::Fingerprint::from(
                         &hdkey.parent_fingerprint.unwrap_or(0).to_be_bytes()[..],
                     ),
                     child_number: childnumber,
                     public_key: bdk::bitcoin::PublicKey::from_slice(&keydata[..])?,
                     chain_code: bdk::bitcoin::util::bip32::ChainCode::from(
-                        &hdkey.chain_code.ok_or_else(|| {
+                        hdkey.chain_code.ok_or_else(|| {
                             SweepError::new("hdkey".to_string(), "chaincode".to_string())
-                        })?[..],
+                        })?,
                     ),
                 };
 
@@ -464,7 +462,7 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Result<Box<Value>, SweepEr
                     out.push_str(&c.components_str);
                 };
 
-                out.push_str(&format!("{}", xpub.to_string()));
+                out.push_str(&xpub.to_string());
 
                 if let Some(c) = hdkey.children {
                     out.push_str(&c.components);
@@ -503,17 +501,21 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Result<Box<Value>, SweepEr
                 }
 
                 if let Value::Map(v) = *val_nxt.clone() {
-                    let threshold = v.get(&Value::Integer(1)).ok_or(SweepError::new(
-                        "output descriptor".to_string(),
-                        "multi missing threshold".to_string(),
-                    ))?;
+                    let threshold = v.get(&Value::Integer(1)).ok_or_else(|| {
+                        SweepError::new(
+                            "output descriptor".to_string(),
+                            "multi missing threshold".to_string(),
+                        )
+                    })?;
                     if let Value::Integer(i) = threshold {
                         out.push_str(&format!("{},", i));
                     }
-                    let arr = v.get(&Value::Integer(2)).ok_or(SweepError::new(
-                        "output descriptor".to_string(),
-                        "multi missing keys".to_string(),
-                    ))?;
+                    let arr = v.get(&Value::Integer(2)).ok_or_else(|| {
+                        SweepError::new(
+                            "output descriptor".to_string(),
+                            "multi missing keys".to_string(),
+                        )
+                    })?;
                     if let Value::Array(v) = arr {
                         for i in v {
                             if let Value::Tag(num, _) = i {
@@ -526,7 +528,7 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Result<Box<Value>, SweepEr
                                     let eckey: EcKey = serde_cbor::de::from_slice(&p)?;
                                     out.push_str(&hex::encode(eckey.data));
                                 }
-                                out.push_str(",");
+                                out.push(',');
                             }
                         }
                         out.pop();
