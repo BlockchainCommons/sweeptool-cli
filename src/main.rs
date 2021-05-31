@@ -33,9 +33,23 @@ struct CliOutput {
     psbt: Psbt,
 }
 
+const ABOUT: &str = r#"Result:
+{                       (json object)
+  "amount" : n,         (numeric) amount swept
+  "fees" : n,           (numeric) miner fees [satoshi/vbyte]
+  "address" : "str",    (string) destination address for the funds swept
+  "timestamp": n,       (numeric) unix timestamp of the PSBT created
+  "txid" : "str",       (string) Transaction ID
+  "psbt" : {            (json object)
+     "base64" : "str",  (string) psbt in base64 format
+     "ur" : "str"       (string) psbt in UR format
+   }
+}
+"#;
+
 #[derive(Clap, Debug)]
-#[clap(version=crate_version!())]
-/// Sweep funds from a Bitcoin output descriptor
+#[clap(version=crate_version!(), about=ABOUT)]
+#[clap(verbatim_doc_comment)]
 struct CliInput {
     /// Descriptor in UR format or in Bitcoin Core compatible format
     #[clap(short = 'd')]
