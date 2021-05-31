@@ -9,11 +9,11 @@ use clap::Clap;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
+mod ur;
+use ur::{decode_ur_address, is_ur_address, is_ur_descriptor, parse_ur_descriptor, psbt_as_ur};
+
 mod errors;
 use errors::SweepError;
-
-mod ur;
-use ur::{decode_ur_address, is_ur_address, parse_ur_descriptor, psbt_as_ur};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Psbt {
@@ -45,7 +45,7 @@ struct CliInput {
     /// Address gap limit to search through descriptors for available funds
     #[clap(short = 'g')]
     address_gap_limit: Option<u32>,
-    /// Address in UR format or in bitcoin core compatible format. UR format is unstable atm.
+    /// Bitcoin address in UR format or in bitcoin core compatible format.
     #[clap(short)]
     address: String,
     /// Target (number of blocks) to estimate fee rate
@@ -60,27 +60,33 @@ fn main() -> Result<(), SweepError> {
     let opt = CliInput::parse();
 
     let descriptor = if let Some(ref desc) = opt.descriptor {
-        if let Some(d) = parse_ur_descriptor(desc.to_string()) {
+        if is_ur_descriptor(desc.to_string()) {
             // this is UR format
-            d
+            parse_ur_descriptor(desc.to_string())?
         } else {
             // this is bitcoin core compatible format
             desc.to_string()
         }
     } else {
-        panic!("UR descriptor cannot be currently passed via STDIN. Pass it as a CLI arg")
+        return Err(SweepError::new(
+            "cli arg".to_string(),
+            "UR descriptor cannot be currently passed via STDIN. Pass it as a CLI arg".to_string(),
+        ));
     };
 
     let descriptor_chg = if let Some(ref desc) = opt.descriptor_chg {
-        if let Some(d) = parse_ur_descriptor(desc.to_string()) {
+        if is_ur_descriptor(desc.to_string()) {
             // this is UR format
-            d
+            parse_ur_descriptor(desc.to_string())?
         } else {
             // this is bitcoin core compatible format
             desc.to_string()
         }
     } else {
-        panic!("UR change descriptor cannot be currently passed via STDIN. Pass it as a CLI arg")
+        return Err(SweepError::new(
+            "cli arg".to_string(),
+            "UR descriptor cannot be currently passed via STDIN. Pass it as a CLI arg".to_string(),
+        ));
     };
 
     let client = Client::new("ssl://electrum.blockstream.info:60002")?;
@@ -99,14 +105,14 @@ fn main() -> Result<(), SweepError> {
         ElectrumBlockchain::from(client),
     )?;
 
-    let feerate = wallet.client().estimate_fee(opt.target).unwrap();
+    let feerate = wallet.client().estimate_fee(opt.target)?;
 
     wallet.sync(noop_progress(), opt.address_gap_limit)?;
 
     let addr = if is_ur_address(opt.address.clone()) {
-        decode_ur_address(opt.address)
+        decode_ur_address(opt.address)?
     } else {
-        Address::from_str(&opt.address).unwrap()
+        Address::from_str(&opt.address)?
     };
 
     let (psbt, details) = {
@@ -127,7 +133,7 @@ fn main() -> Result<(), SweepError> {
         txid: details.txid.to_string(),
         psbt: Psbt {
             base64: base64::encode(&serialize(&psbt)),
-            ur: psbt_as_ur(serialize(&psbt)),
+            ur: psbt_as_ur(serialize(&psbt))?,
         },
     };
 

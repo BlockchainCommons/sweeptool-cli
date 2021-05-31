@@ -1,20 +1,21 @@
 use bdk::bitcoin::hashes::Hash;
 use serde::{Deserialize, Serialize};
+use serde_cbor::tags::Tagged;
 use serde_cbor::value::Value;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::str::FromStr;
 use ur_rs::bytewords;
 
-use serde_cbor::tags::Tagged;
+use crate::errors::SweepError;
 
-pub fn psbt_as_ur(psbt: Vec<u8>) -> String {
+pub fn psbt_as_ur(psbt: Vec<u8>) -> Result<String, SweepError> {
     use serde_cbor::to_vec;
     let arr = Value::Bytes(psbt.clone());
-    let psbt_ = to_vec(&arr).unwrap();
+    let psbt_ = to_vec(&arr)?;
     let bytewrds = bytewords::encode(&psbt_, &bytewords::Style::Minimal);
     let psbt_ur = "ur:crypto-psbt/".to_owned() + &bytewrds;
-    psbt_ur
+    Ok(psbt_ur)
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -22,8 +23,6 @@ pub enum CborNetwork {
     Mainnet = 0,
     Testnet = 1,
 }
-
-use std::convert::TryFrom;
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct HDKey<'a> {
@@ -50,11 +49,6 @@ pub struct HDKey<'a> {
     note: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Serialize)]
-pub struct CPsbt {
-    pub data: Vec<u8>,
-}
-
 #[derive(Debug, PartialEq)]
 pub struct CryptoKeyPath2 {
     // this is only for the tail part of the output descriptor
@@ -62,6 +56,7 @@ pub struct CryptoKeyPath2 {
     pub components: String,
 }
 
+// TODO tag number should be checked and consumed outside this function
 impl<'a, 'de> Deserialize<'de> for CryptoKeyPath2 {
     fn deserialize<D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let tagged = Value::deserialize(deserializer)?;
@@ -109,6 +104,7 @@ impl Serialize for CryptoKeyPath {
     }
 }
 
+// TODO tag number should be checked and consumed outside this function
 impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
     fn deserialize<D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let tagged = Value::deserialize(deserializer)?;
@@ -123,7 +119,7 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
         if let Value::Tag(_number, val_nxt) = tagged {
             // TODO assert number
             if let Value::Map(m) = *val_nxt.clone() {
-                let arr = m.get(&Value::Integer(1)).unwrap_or(&Value::Integer(0)); // this will skip parsing array in the next step TODO!!! solve unwrap
+                let arr = m.get(&Value::Integer(1)).unwrap_or(&Value::Integer(0)); // this will skip parsing array in the next step
                 if let Value::Array(a) = arr {
                     for i in 0..a.len() - 1 {
                         // TODO 0 to -1 if len == 0 error
@@ -140,14 +136,30 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
                             let indx = if a[i + 1] == Value::Bool(true) {
                                 obj.components_str.push('h');
                                 bdk::bitcoin::util::bip32::ChildNumber::from_hardened_idx(
-                                    ar.try_into().unwrap(),
+                                    ar.try_into().map_err(|_| {
+                                        serde::de::Error::custom(
+                                            "crypto-keypath: incorrect child number",
+                                        )
+                                    })?,
                                 )
-                                .unwrap()
+                                .map_err(|_| {
+                                    serde::de::Error::custom(
+                                        "crypto-keypath: incorrect child number",
+                                    )
+                                })?
                             } else {
                                 bdk::bitcoin::util::bip32::ChildNumber::from_normal_idx(
-                                    ar.try_into().unwrap(),
+                                    ar.try_into().map_err(|_| {
+                                        serde::de::Error::custom(
+                                            "crypto-keypath: incorrect child number",
+                                        )
+                                    })?,
                                 )
-                                .unwrap()
+                                .map_err(|_| {
+                                    serde::de::Error::custom(
+                                        "crypto-keypath: incorrect child number",
+                                    )
+                                })?
                             };
                             obj.components.push(indx);
                         }
@@ -164,7 +176,12 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
                     if let Some(Value::Integer(s)) = depth {
                         // depth always takes precedense over components length
                         obj.depth = *s as u8;
-                        assert!(obj.depth >= obj.components.len() as u8);
+
+                        if obj.depth < obj.components.len() as u8 {
+                            return Err(serde::de::Error::custom(
+                                "crypto-keypath error: depth < obj.components.len",
+                            ));
+                        };
                     } else {
                         obj.depth = obj.components.len() as u8;
                     }
@@ -172,18 +189,6 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
             }
         }
         Ok(obj)
-    }
-}
-
-#[derive(Debug, PartialEq)]
-struct Multisig {
-    threshold: u32,
-    keys: Vec<EcKey>,
-}
-
-impl Serialize for Multisig {
-    fn serialize<S: serde::ser::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        Tagged::new(Some(406), &self).serialize(s)
     }
 }
 
@@ -209,8 +214,10 @@ impl<'a> Deserialize<'a> for EcKey {
 
         if let Value::Tag(_number, val_nxt) = tagged {
             if let Value::Map(m) = *val_nxt.clone() {
-                // TODO check for 1 and 2 integers
-                let data = m.get(&Value::Integer(3)).unwrap();
+                // TODO: check for 1 and 2 integers
+                let data = m
+                    .get(&Value::Integer(3))
+                    .ok_or(serde::de::Error::custom("EcKey: missing data"))?;
                 if let Value::Bytes(b) = data.clone() {
                     obj.data = b;
                 }
@@ -298,17 +305,19 @@ impl<'de> Deserialize<'de> for CryptoCoinInfo {
             Some(305) | None => {
                 let type_val = tagged.value.get(&1);
                 if type_val != None {
-                    obj.type_ = Some(*type_val.unwrap());
+                    obj.type_ = Some(*type_val.unwrap()); // safe
                 }
 
                 let network_val = tagged.value.get(&2);
                 if network_val != None {
-                    let network = *network_val.unwrap();
-                    obj.network = Some(network.try_into().unwrap());
+                    let network = *network_val.unwrap(); // safe
+                    obj.network = Some(network.try_into().map_err(|_| {
+                        serde::de::Error::custom("CryptoCoinInfo: incorrect network")
+                    })?);
                 }
                 Ok(obj)
             }
-            Some(_) => Err(serde::de::Error::custom("unexpected tag")),
+            Some(_) => Err(serde::de::Error::custom("CryptoCoinInfo: unexpected tag")),
         }
     }
 }
@@ -331,11 +340,17 @@ pub fn is_ur_address(ur: String) -> bool {
     ur.contains("ur:crypto-address")
 }
 
-pub fn decode_ur_address(ur: String) -> bdk::bitcoin::Address {
-    let (_key, val) = ur.split_once(':').unwrap(); // TODO check key == ur
-    let (_key, val) = val.split_once('/').unwrap(); // TODO check key == crypto-address
-    let mut cbor = bytewords::decode(&val, &bytewords::Style::Minimal).unwrap();
-    let cbor: CborAddress = serde_cbor::de::from_mut_slice(&mut cbor[..]).unwrap();
+pub fn decode_ur_address(ur: String) -> Result<bdk::bitcoin::Address, SweepError> {
+    let (_key, val) = ur.split_once(':').ok_or(SweepError::new(
+        "ur address".to_string(),
+        "missing :".to_string(),
+    ))?;
+    let (_key, val) = val.split_once('/').ok_or(SweepError::new(
+        "ur address".to_string(),
+        "missing /".to_string(),
+    ))?;
+    let mut cbor = bytewords::decode(&val, &bytewords::Style::Minimal)?;
+    let cbor: CborAddress = serde_cbor::de::from_mut_slice(&mut cbor[..])?;
     let data = cbor.data.to_vec(); // pubkeyhash
 
     //println!("**data: {:?}", data);
@@ -366,37 +381,36 @@ pub fn decode_ur_address(ur: String) -> bdk::bitcoin::Address {
         );
     */
 
-    bdk::bitcoin::Address {
+    Ok(bdk::bitcoin::Address {
         payload: bdk::bitcoin::util::address::Payload::PubkeyHash(
             bdk::bitcoin::hash_types::PubkeyHash::from_slice(&data).unwrap(),
         ),
         network: network,
-    }
+    })
 }
 
-pub fn parse_ur_descriptor(ur: String) -> Option<String> {
-    if !ur.starts_with("ur:crypto-output") {
-        return None;
-    }
+pub fn is_ur_descriptor(ur: String) -> bool {
+    ur.starts_with("ur:crypto-output/")
+}
 
-    let (_key, val) = ur.split_once(':').unwrap(); // TODO check key == ur
-    let (_key, val) = val.split_once('/').unwrap(); // TODO check key == crypto-address
-    let mut cbor = bytewords::decode(&val, &bytewords::Style::Minimal).unwrap();
+pub fn parse_ur_descriptor(ur: String) -> Result<String, SweepError> {
+    let (_key, val) = ur.split_once(':').unwrap(); // safe
+    let (_key, val) = val.split_once('/').unwrap(); // safe
+    let cbor = bytewords::decode(&val, &bytewords::Style::Minimal)?;
 
-    let data: Value = serde_cbor::from_slice(&cbor).unwrap();
+    let data: Value = serde_cbor::from_slice(&cbor)?;
     let mut ur_out = String::new();
-    parse_ur_desc(data, &mut ur_out);
-    Some(ur_out)
+    parse_ur_desc(data, &mut ur_out)?;
+    Ok(ur_out)
 }
 
-pub fn parse_ur_desc(val: Value, out: &mut String) -> Option<Box<Value>> {
-    // first check if value is Nil
+pub fn parse_ur_desc(val: Value, out: &mut String) -> Result<Box<Value>, SweepError> {
     if let Value::Tag(number, mut val_nxt) = val.clone() {
         match number {
             303 => {
                 let p = serde_cbor::to_vec(&val_nxt).unwrap();
-                let hdkey: HDKey = serde_cbor::de::from_slice(&p[..]).unwrap();
-                println!("debug: hdkey: {:?}", hdkey);
+                let hdkey: HDKey = serde_cbor::de::from_slice(&p[..])?;
+                //println!("debug: hdkey: {:?}", hdkey);
 
                 // TODO check if this is master key-> no need for dealing with with derivpath if yes
                 // TODO implement iterators to use and_then
@@ -428,19 +442,23 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Option<Box<Value>> {
                 };
 
                 let xpub = bdk::bitcoin::util::bip32::ExtendedPubKey {
-                    network: bdk::bitcoin::Network::try_from(net).unwrap(), // TODO
+                    network: bdk::bitcoin::Network::try_from(net).map_err(|_| {
+                        SweepError::new("xpub".to_string(), "wrong network".to_string())
+                    })?,
                     depth: depth,
                     parent_fingerprint: bdk::bitcoin::util::bip32::Fingerprint::from(
                         &hdkey.parent_fingerprint.unwrap_or(0).to_be_bytes()[..],
                     ),
                     child_number: childnumber,
-                    public_key: bdk::bitcoin::PublicKey::from_slice(&keydata[..]).unwrap(),
+                    public_key: bdk::bitcoin::PublicKey::from_slice(&keydata[..])?,
                     chain_code: bdk::bitcoin::util::bip32::ChainCode::from(
-                        &hdkey.chain_code.unwrap()[..],
+                        &hdkey.chain_code.ok_or_else(|| {
+                            SweepError::new("hdkey".to_string(), "chaincode".to_string())
+                        })?[..],
                     ),
                 };
 
-                println!("debug xpub>>: {:?}", xpub);
+                //println!("debug xpub>>: {:?}", xpub);
 
                 if let Some(c) = hdkey.origin {
                     out.push_str(&c.components_str);
@@ -454,29 +472,27 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Option<Box<Value>> {
             }
             306 => {
                 let p = serde_cbor::to_vec(&val).unwrap();
-                let eckey: EcKey = serde_cbor::de::from_slice(&p).unwrap();
+                let eckey: EcKey = serde_cbor::de::from_slice(&p)?;
                 out.push_str(&hex::encode(eckey.data));
             }
             400 => {
                 out.push_str(&"sh(".to_string());
-                val_nxt = parse_ur_desc(*val_nxt, out).unwrap();
+                val_nxt = parse_ur_desc(*val_nxt, out)?;
                 out.push_str(&")".to_string());
             }
             403 => {
                 out.push_str(&"pkh(".to_string());
-                // recursion here: parse_ur_desc
                 val_nxt = parse_ur_desc(*val_nxt, out).unwrap();
                 out.push_str(&")".to_string());
             }
             401 => {
-                //println!("witness_public_key_hash");
                 out.push_str(&"wsh(".to_string());
                 val_nxt = parse_ur_desc(*val_nxt, out).unwrap();
                 out.push_str(&")".to_string());
             }
             404 => {
                 out.push_str(&"wpkh(".to_string());
-                val_nxt = parse_ur_desc(*val_nxt, out).unwrap();
+                val_nxt = parse_ur_desc(*val_nxt, out)?;
                 out.push_str(&")".to_string());
             }
             406 | 407 => {
@@ -487,21 +503,27 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Option<Box<Value>> {
                 }
 
                 if let Value::Map(v) = *val_nxt.clone() {
-                    let threshold = v.get(&Value::Integer(1)).unwrap();
+                    let threshold = v.get(&Value::Integer(1)).ok_or(SweepError::new(
+                        "output descriptor".to_string(),
+                        "multi missing threshold".to_string(),
+                    ))?;
                     if let Value::Integer(i) = threshold {
                         out.push_str(&format!("{},", i));
                     }
-                    let arr = v.get(&Value::Integer(2)).unwrap();
+                    let arr = v.get(&Value::Integer(2)).ok_or(SweepError::new(
+                        "output descriptor".to_string(),
+                        "multi missing keys".to_string(),
+                    ))?;
                     if let Value::Array(v) = arr {
                         for i in v {
                             if let Value::Tag(num, _) = i {
                                 if *num == 303 {
                                     // hdkey
-                                    val_nxt = parse_ur_desc(i.clone(), out).unwrap();
+                                    val_nxt = parse_ur_desc(i.clone(), out)?;
                                 } else if *num == 306 {
                                     // eckey
-                                    let p = serde_cbor::to_vec(&i).unwrap();
-                                    let eckey: EcKey = serde_cbor::de::from_slice(&p).unwrap(); // TODO
+                                    let p = serde_cbor::to_vec(&i)?;
+                                    let eckey: EcKey = serde_cbor::de::from_slice(&p)?;
                                     out.push_str(&hex::encode(eckey.data));
                                 }
                                 out.push_str(",");
@@ -515,10 +537,12 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Option<Box<Value>> {
 
             _ => panic!("wrong tag {:?}", number),
         }
-        Some(val_nxt)
+        Ok(val_nxt)
     } else {
-        println!("false"); // TODO error out
-        None
+        Err(SweepError::new(
+            "UR output descriptor".to_string(),
+            "parsing".to_string(),
+        ))
     }
 }
 
