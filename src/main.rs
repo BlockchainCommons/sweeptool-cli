@@ -9,6 +9,9 @@ use clap::Clap;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
+mod errors;
+use errors::SweepError;
+
 mod ur;
 use ur::{decode_ur_address, is_ur_address, parse_ur_descriptor, psbt_as_ur};
 
@@ -53,7 +56,7 @@ struct CliInput {
     network: String,
 }
 
-fn main() -> Result<(), bdk::Error> {
+fn main() -> Result<(), SweepError> {
     let opt = CliInput::parse();
 
     let descriptor = if let Some(ref desc) = opt.descriptor {
