@@ -340,7 +340,7 @@ pub fn is_ur_address(ur: String) -> bool {
     ur.contains("ur:crypto-address")
 }
 
-pub fn decode_ur_address(ur: String) -> Result<bdk::bitcoin::Address, SweepError> {
+pub fn _decode_ur_address(ur: String) -> Result<bdk::bitcoin::Address, SweepError> {
     let (_key, val) = ur.split_once(':').ok_or(SweepError::new(
         "ur address".to_string(),
         "missing :".to_string(),

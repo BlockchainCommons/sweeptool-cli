@@ -5,6 +5,7 @@ use bdk::blockchain::{noop_progress, ElectrumBlockchain};
 use bdk::database::MemoryDatabase;
 use bdk::electrum_client::Client;
 use bdk::Wallet;
+use clap::crate_version;
 use clap::Clap;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -33,7 +34,7 @@ struct CliOutput {
 }
 
 #[derive(Clap, Debug)]
-#[clap()]
+#[clap(version=crate_version!())]
 /// Sweeptool-cli
 struct CliInput {
     /// Descriptor in UR format or in bitcoin core compatible format
