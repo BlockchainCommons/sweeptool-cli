@@ -35,21 +35,20 @@ struct CliOutput {
 
 #[derive(Clap, Debug)]
 #[clap(version=crate_version!())]
-/// Sweeptool-cli
 struct CliInput {
-    /// Descriptor in UR format or in bitcoin core compatible format
+    /// Descriptor in UR format or in Bitcoin Core compatible format
     #[clap(short = 'd')]
     descriptor: Option<String>,
-    /// Change descriptor in UR format or in bitcoin core compatible format
+    /// Change descriptor in UR format or in Bitcoin core compatible format
     #[clap(short = 'c')]
     descriptor_chg: Option<String>,
-    /// Address gap limit to search through descriptors for available funds
+    /// Address gap limit to search within for available funds
     #[clap(short = 'g')]
     address_gap_limit: Option<u32>,
-    /// Bitcoin address in UR format or in bitcoin core compatible format.
+    /// Bitcoin address in UR format or in Bitcoin Core compatible format.
     #[clap(short)]
     address: String,
-    /// Target (number of blocks) to estimate fee rate
+    /// Target (number of blocks) used to estimate the fee rate for a PSBT
     #[clap(short, default_value = "6")]
     target: usize,
     /// Bitcoin network
