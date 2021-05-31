@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 mod ur;
-use ur::{decode_ur_address, is_ur_address, is_ur_descriptor, parse_ur_descriptor, psbt_as_ur};
+use ur::{is_ur_address, is_ur_descriptor, parse_ur_descriptor, psbt_as_ur};
 
 mod errors;
 use errors::SweepError;
@@ -110,7 +110,11 @@ fn main() -> Result<(), SweepError> {
     wallet.sync(noop_progress(), opt.address_gap_limit)?;
 
     let addr = if is_ur_address(opt.address.clone()) {
-        decode_ur_address(opt.address)?
+        return Err(SweepError::new(
+            "cli arg".to_string(),
+            "UR address not implemented".to_string(),
+        ));
+        //decode_ur_address(opt.address)?
     } else {
         Address::from_str(&opt.address)?
     };
