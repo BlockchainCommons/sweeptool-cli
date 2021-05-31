@@ -35,13 +35,14 @@ struct CliOutput {
 
 #[derive(Clap, Debug)]
 #[clap(version=crate_version!())]
+/// Sweep funds from a Bitcoin output descriptor
 struct CliInput {
     /// Descriptor in UR format or in Bitcoin Core compatible format
     #[clap(short = 'd')]
-    descriptor: Option<String>,
+    descriptor: String,
     /// Change descriptor in UR format or in Bitcoin core compatible format
     #[clap(short = 'c')]
-    descriptor_chg: Option<String>,
+    descriptor_chg: String,
     /// Address gap limit to search within for available funds
     #[clap(short = 'g')]
     address_gap_limit: Option<u32>,
@@ -59,7 +60,9 @@ struct CliInput {
 fn main() -> Result<(), SweepError> {
     let opt = CliInput::parse();
 
-    let descriptor = if let Some(ref desc) = opt.descriptor {
+    // TODO remove this when STDIN support implemented
+    let descriptor = Some(opt.descriptor);
+    let descriptor = if let Some(ref desc) = descriptor {
         if is_ur_descriptor(desc.to_string()) {
             // this is UR format
             parse_ur_descriptor(desc.to_string())?
@@ -74,7 +77,9 @@ fn main() -> Result<(), SweepError> {
         ));
     };
 
-    let descriptor_chg = if let Some(ref desc) = opt.descriptor_chg {
+    // TODO remove this when STDIN support implemented
+    let descriptor_chg = Some(opt.descriptor_chg);
+    let descriptor_chg = if let Some(ref desc) = descriptor_chg {
         if is_ur_descriptor(desc.to_string()) {
             // this is UR format
             parse_ur_descriptor(desc.to_string())?
