@@ -549,11 +549,11 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Result<Box<Value>, SweepEr
 }
 
 #[test]
-fn outputdesc_test_vector_5() -> Result<(), Box<dyn std::error::Error>> {
+fn outputdesc_test_vector_5() -> Result<(), SweepError> {
     let  inp = hex::decode("d90191d90196a201010282d9012fa403582103cbcaa9c98c877a26977d00825c956a238e8dddfbd322cce4f74b0b5bd6ace4a704582060499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd968906d90130a1030007d90130a1018601f400f480f4d9012fa403582102fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea045820f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c06d90130a2018200f4021abd16bee507d90130a1018600f400f480f4").unwrap();
     let data: Value = serde_cbor::from_slice(&inp).unwrap();
     let mut out = String::new();
-    parse_ur_desc(data, &mut out);
+    parse_ur_desc(data, &mut out)?;
     println!("\noutput descriptor: {:?}", out);
 
     // TODO this test case is incorrect in the spec, because it is missing
@@ -563,13 +563,13 @@ fn outputdesc_test_vector_5() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn outputdesc_test_vector_4() -> Result<(), Box<dyn std::error::Error>> {
+fn outputdesc_test_vector_4() -> Result<(), SweepError> {
     let  inp = hex::decode("D90193D9012FA503582102D2B36900396C9282FA14628566582F206A5DD0BCC8D5E892611806CAFB0301F0045820637807030D55D01F9A0CB3A7839515D796BD07706386A6EDDF06CC29A65A0E2906D90130A20186182CF500F500F5021AD34DB33F07D90130A1018401F480F4081A78412E3A").unwrap();
     let _expected = "wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/1/0/*,[m/0]xpub67tVq9TC3jGc8hyd7kgmC1GK87PYAtgqFcAhJTgBP5VQ6d9RssQK1iwWk3ZY8cbrAuwmp31gShjmBoHKmKbEaQfAbppVSuDh1ojtymY92dh/0/0/*))";
 
     let data: Value = serde_cbor::from_slice(&inp).unwrap();
     let mut out = String::new();
-    parse_ur_desc(data, &mut out);
+    parse_ur_desc(data, &mut out)?;
     println!("\noutput descriptor: {:?}", out);
 
     // TODO this test case is incorrect in the spec, it contains incorrect depth
@@ -578,12 +578,12 @@ fn outputdesc_test_vector_4() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn outputdesc_test_vector_3() -> Result<(), Box<dyn std::error::Error>> {
+fn outputdesc_test_vector_3() -> Result<(), SweepError> {
     let inp = hex::decode("d90190d90196a201020282d90132a1035821022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01d90132a103582103acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe").unwrap();
     let expected = "sh(multi(2,022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01,03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe))";
     let data: Value = serde_cbor::from_slice(&inp).unwrap();
     let mut out = String::new();
-    parse_ur_desc(data, &mut out);
+    parse_ur_desc(data, &mut out)?;
 
     // This test vector is correct
     assert_eq!(out, expected);
@@ -592,7 +592,7 @@ fn outputdesc_test_vector_3() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn hdkey_test_vector_1() -> Result<(), Box<dyn std::error::Error>> {
+fn hdkey_test_vector_1() -> Result<(), SweepError> {
     let mut inp =
         hex::decode("A301F503582100E8F32E723DECF4051AEFAC8E2C93C9C5B214313817CDB01A1494B917C8436B35045820873DFF81C02F525623FD1FE5167EAC3A55A049DE3D314BB42EE227FFED37D508").unwrap();
     let key_data_expected =
@@ -600,7 +600,7 @@ fn hdkey_test_vector_1() -> Result<(), Box<dyn std::error::Error>> {
     let chaincode_expected =
         hex::decode("873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d508").unwrap();
 
-    let hdkey: HDKey = serde_cbor::de::from_mut_slice(&mut inp[..]).unwrap();
+    let hdkey: HDKey = serde_cbor::de::from_mut_slice(&mut inp[..])?;
     println!("hdkey: {:?}", hdkey);
 
     assert_eq!(hdkey.is_master.unwrap(), true);
@@ -613,17 +613,18 @@ fn hdkey_test_vector_1() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn psbt_test_vector_1() -> Result<(), Box<dyn std::error::Error>> {
+fn psbt_test_vector_1() -> Result<(), SweepError> {
     let inp = hex::decode("70736274FF01009A020000000258E87A21B56DAF0C23BE8E7070456C336F7CBAA5C8757924F545887BB2ABDD750000000000FFFFFFFF838D0427D0EC650A68AA46BB0B098AEA4422C071B2CA78352A077959D07CEA1D0100000000FFFFFFFF0270AAF00800000000160014D85C2B71D0060B09C9886AEB815E50991DDA124D00E1F5050000000016001400AEA9A2E5F0F876A588DF5546E8742D1D87008F000000000000000000").unwrap();
     let expected = "ur:crypto-psbt/hdosjojkidjyzmadaenyaoaeaeaeaohdvsknclrejnpebncnrnmnjojofejzeojlkerdonspkpkkdkykfelokgprpyutkpaeaeaeaeaezmzmzmzmlslgaaditiwpihbkispkfgrkbdaslewdfycprtjsprsgksecdratkkhktikewdcaadaeaeaeaezmzmzmzmaojopkwtayaeaeaeaecmaebbtphhdnjstiambdassoloimwmlyhygdnlcatnbggtaevyykahaeaeaeaecmaebbaeplptoevwwtyakoonlourgofgvsjydpcaltaemyaeaeaeaeaeaeaeaeaebkgdcarh";
 
-    assert_eq!(psbt_as_ur(inp), expected);
+    assert_eq!(psbt_as_ur(inp)?, expected);
 
     Ok(())
 }
 
 #[test]
-fn address_test_vector_1() -> Result<(), Box<dyn std::error::Error>> {
+fn address_test_vector_1() -> Result<(), SweepError> {
+    use std::str::FromStr;
     let inp = "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2".to_string();
     let ad = bdk::bitcoin::Address::from_str(&inp).unwrap();
 
@@ -637,7 +638,7 @@ fn address_test_vector_1() -> Result<(), Box<dyn std::error::Error>> {
         network: bdk::bitcoin::Network::Bitcoin,
     };
 
-    println!("**addr {:?}", addr);
+    //println!("**addr {:?}", addr);
 
     assert_eq!(addr, ad);
 
