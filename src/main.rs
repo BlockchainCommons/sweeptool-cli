@@ -33,7 +33,8 @@ struct CliOutput {
     psbt: Psbt,
 }
 
-const ABOUT: &str = r#"Result:
+const ABOUT: &str = r#"Sweeptool creates a PSBT for the funds you want to sweep from a Bitcoin output descriptor.
+Result:
 {                       (json object)
   "amount" : n,         (numeric) amount swept
   "fees" : n,           (numeric) miner fees [satoshi/vbyte]
