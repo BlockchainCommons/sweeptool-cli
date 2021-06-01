@@ -4,6 +4,7 @@ use bdk::blockchain::Blockchain;
 use bdk::blockchain::{noop_progress, ElectrumBlockchain};
 use bdk::database::MemoryDatabase;
 use bdk::electrum_client::Client;
+use bdk::wallet::tx_builder;
 use bdk::Wallet;
 use clap::crate_version;
 use clap::Clap;
@@ -149,6 +150,33 @@ fn main() -> Result<(), SweepError> {
         builder.finish()?
     };
 
+    /////// test:
+
+    let unspent = wallet.list_unspent().unwrap();
+    println!("*** unspent {:?}", unspent);
+
+    let (psbt, details) = {
+        let mut builder = wallet.build_tx();
+        //builder.drain_wallet();
+
+        for u in unspent {
+            builder
+                .drain_wallet()
+                .manually_selected_only()
+                .add_utxo(u.outpoint)
+                .unwrap()
+                .ordering(tx_builder::TxOrdering::Untouched)
+                //.add_recipient(addr.script_pubkey(), u.txout.value) // script pubkey accoridng to new descirptor
+                .set_single_recipient(addr.script_pubkey())
+                .enable_rbf()
+                .fee_rate(feerate);
+        }
+
+        builder.finish()?
+    };
+    println!("\n** psbt: {:?}", psbt);
+
+    ////////////////7
     let out = CliOutput {
         amount: details.sent,
         fees: details.fees,
@@ -161,7 +189,7 @@ fn main() -> Result<(), SweepError> {
         },
     };
 
-    println!("{}", serde_json::to_string(&out)?);
+    //println!("{}", serde_json::to_string(&out)?);
 
     Ok(())
 }
