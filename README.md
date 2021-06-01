@@ -10,11 +10,27 @@ Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoind
 
 ` sweeptool-cli`  is currently under active development and in the late alpha testing phase. It should not be used for production tasks until it has had further testing and auditing.
 
+### Disclaimer
+
+There are some risks involved associated with the usage of *sweeptool*:
+
+1. This tool is based on a fairly large framework with lots of small and medium size dependencies.
+This presents a risk for a dependency or the package manager to get compromised.
+2. Using *sweeptool* with UR based format is fairly new and therefore experimental.
+
+Both of the risk may lead to a loss of funds. To mitigate this risk the user MUST
+double check the output results of *Sweeptool* with the input results
+of an (offline) signing device which user signs the PSBT with. Specifically, the entries
+that must match are: *PSBT*, *destination address* and the amount of *funds swept*.
+
 ### Roadmap
 
-- [ ] sweep funds from descriptor to an address
+- [x] sweep funds from descriptor to an address
+- [x] support for URs (btc descriptor, btc address, psbt)
+- [x] fee estimation
+- [x] error handling
 - [ ] sweep funds from descriptor to another descriptor
-- [ ] cli support for URs (btc descriptor, btc address, psbt)
+- [ ] pass args vis STDIN
 
 ## Prerequisites
 
@@ -47,29 +63,22 @@ It will be generated in `target/debug/`
 
 ## Usage Instructions
 
+See [Manual](docs/MANUAL.md)
+
 ## Origin, Authors, Copyright & Licenses
 
 Unless otherwise noted (either in this [/README.md](./README.md) or in the file's header comments) the contents of this repository are Copyright © 2020 by Blockchain Commons, LLC, and are [licensed](./LICENSE) under the [spdx:BSD-2-Clause Plus Patent License](https://spdx.org/licenses/BSD-2-Clause-Patent.html).
 
-In most cases, the authors, copyright, and license for each file reside in header comments in the source code. When it does not, we have attempted to attribute it accurately in the table below.
+In most cases, the authors, copyright, and license for each file reside in header comments in the source code. When it does not, we will attempt to attribute it accurately in a table in this section.
 
-This table below also establishes provenance (repository of origin, permalink, and commit id) for files included from repositories that are outside of this repo. Contributors to these files are listed in the commit history for each repository, first with changes found in the commit history of this repo, then in changes in the commit history of their repo of their origin.
-
-| File      | From                                                         | Commit                                                       | Authors & Copyright (c)                                | License                                                     |
-| --------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------------- |
-| exception-to-the-rule.c or exception-folder | [https://github.com/community/repo-name/PERMALINK](https://github.com/community/repo-name/PERMALINK) | [https://github.com/community/repo-name/commit/COMMITHASH]() | 2020 Exception Author  | [MIT](https://spdx.org/licenses/MIT)                        |
-
-### Dependencies
-
-To build  `sweeptool-cli` you'll need to use the following tools:
-
-- autotools - Gnu Build System from Free Software Foundation ([intro](https://www.gnu.org/software/automake/manual/html_node/Autotools-Introduction.html)).
 
 ### Libraries
 
 The following external libraries are used with `sweeptool-cli`:
 
 External libraries are listed in [cargo.toml]().
+
+Since external libraries use their own libraries you can see the complete list of libraries in [Cargo.lock]()
 
 ### Derived from ...
 
@@ -79,25 +88,7 @@ This  `sweeptool-cli` project is either derived from or was inspired by:
 
 ## Subsequent Usage
 
-### Adapted by ...
-
-These are adaptations, conversions, and wrappers that make `sweeptool-cli` available for other languages:
-
-- [community/repo-name/](https://github.com/community/repo-name) — Repo that does what, by [developer](https://github.com/developer)  or from  [community](https://community.com)(language).
-
-### Used by ...
-
-These are other projects that directly use `sweeptool-cli`:
-
-- [community/repo-name/](https://github.com/community/repo-name) — Repo that does what, by [developer](https://github.com/developer)  or from  [community](https://community.com)(use OR fork [version] OR include [version]).
-
-Libraries may be marked as `use` (the current version of our repo is used), `fork` (a specific version of our repo has been forked for usage), or `include` (files from a specific version of our repo have been included).
-
-### Used with ...
-
-These are other projects that work with or leverage `sweeptool-cli`:
-
-- [community/repo-name/](https://github.com/community/repo-name) — Repo that does what, by [developer](https://github.com/developer)  or from  [community](https://community.com).
+Currently no other projects are based on this tool.
 
 ## Financial Support
 
