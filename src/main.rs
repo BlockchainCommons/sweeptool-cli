@@ -8,8 +8,9 @@ use bdk::wallet::tx_builder;
 use bdk::wallet::AddressIndex::New;
 use bdk::Wallet;
 use clap::crate_version;
-use clap::Clap;
+use clap::{ArgGroup, Clap};
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 use std::str::FromStr;
 
 mod ur;
@@ -28,8 +29,6 @@ struct Psbt {
 struct CliOutput {
     amount: u64,
     fees: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    address: Option<String>,
     timestamp: u64,
     txid: String,
     psbt: Psbt,
@@ -39,8 +38,7 @@ const ABOUT: &str = r#"Sweeptool creates a PSBT for the funds you want to sweep 
 Result:
 {                       (json object)
   "amount" : n,         (numeric) amount swept
-  "fees" : n,           (numeric) miner fees [satoshi/vbyte]
-  "address" : "str",    (string) destination address for the funds swept
+  "fees" : n,           (numeric) miner fees [sats]
   "timestamp": n,       (numeric) unix timestamp of the PSBT created
   "txid" : "str",       (string) Transaction ID
   "psbt" : {            (json object)
@@ -53,6 +51,7 @@ Result:
 #[derive(Clap, Debug)]
 #[clap(version=crate_version!(), about=ABOUT)]
 #[clap(verbatim_doc_comment)]
+#[clap(group = ArgGroup::new("destination").required(true))]
 struct CliInput {
     /// Descriptor in UR format or in Bitcoin Core compatible format
     #[clap(short = 'd')]
@@ -64,8 +63,14 @@ struct CliInput {
     #[clap(short = 'g')]
     address_gap_limit: Option<u32>,
     /// Bitcoin address in UR format or in Bitcoin Core compatible format.
-    #[clap(short)]
-    address: String,
+    #[clap(short, group = "destination")]
+    address: Option<String>,
+    /// Destination descriptor in UR format or in Bitcoin Core compatible format
+    #[clap(short = 'e', group = "destination", requires = "dest-descriptor-chg")]
+    dest_descriptor: Option<String>,
+    /// Destination change descriptor in UR format or in Bitcoin core compatible format
+    #[clap(short = 's')]
+    dest_descriptor_chg: Option<String>,
     /// Target (number of blocks) used to estimate the fee rate for a PSBT
     #[clap(short, default_value = "6")]
     target: usize,
@@ -127,86 +132,163 @@ fn main() -> Result<(), SweepError> {
         ElectrumBlockchain::from(client),
     )?;
 
+    // TEST
+    // user is sweeping to an output descriptor
+    let wallet_source = Rc::new(Wallet::new_offline(
+        &descriptor,
+        None,
+        netw,
+        MemoryDatabase::default(),
+    )?);
+
+    let wallet_source_chg = Rc::new(Wallet::new_offline(
+        &descriptor_chg,
+        None,
+        netw,
+        MemoryDatabase::default(),
+    )?);
+
     let feerate = wallet.client().estimate_fee(opt.target)?;
 
     wallet.sync(noop_progress(), opt.address_gap_limit)?;
 
-    let addr = if is_ur_address(opt.address.clone()) {
-        return Err(SweepError::new(
-            "cli arg".to_string(),
-            "UR address not implemented".to_string(),
-        ));
-        //decode_ur_address(opt.address)?
-    } else {
-        Address::from_str(&opt.address)?
-    };
+    // Is user sweeping to an address or to an output descriptor?
+    let (psbt, details) = if let Some(ref addr) = opt.address {
+        let addr = if is_ur_address(addr.to_string()) {
+            return Err(SweepError::new(
+                "cli arg".to_string(),
+                "UR address not implemented".to_string(),
+            ));
+            //decode_ur_address(opt.address)?
+        } else {
+            Address::from_str(&addr)?
+        };
 
-    let (psbt, details) = {
-        let mut builder = wallet.build_tx();
-        builder.drain_wallet();
-        builder
-            .set_single_recipient(addr.script_pubkey())
-            .enable_rbf()
-            .fee_rate(feerate);
-        builder.finish()?
-    };
-
-    /////// test:
-
-    let client2 = Client::new("ssl://electrum.blockstream.info:60002")?;
-    let wallet2 = Wallet::new(
-        "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)",
-        Some("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)"),
-        bdk::bitcoin::Network::Testnet,
-        MemoryDatabase::default(),
-        ElectrumBlockchain::from(client2)
-    )?;
-
-    let unspent = wallet.list_unspent().unwrap();
-    println!("*** unspent {:?}", unspent);
-
-    let (psbt, details) = {
-        let mut builder = wallet.build_tx();
-        //builder.drain_wallet();
-
-        for u in unspent {
+        {
+            let mut builder = wallet.build_tx();
+            builder.drain_wallet();
             builder
-                //.drain_wallet()
-                .manually_selected_only()
-                .add_utxo(u.outpoint)
-                .unwrap()
-                .ordering(tx_builder::TxOrdering::Untouched)
-                .add_recipient(addr.script_pubkey(), u.txout.value) // script pubkey accoridng to new descirptor
-                //.set_single_recipient(wallet.get_address(New)?.script_pubkey())
+                .set_single_recipient(addr.script_pubkey())
                 .enable_rbf()
-                .fee_rate(bdk::FeeRate::from_sat_per_vb(0.0)); // temporarily set fees to 0 to build the Tx
+                .fee_rate(feerate);
+            builder.finish()?
         }
-        builder.finish()?
+    } else {
+        // TODO remove this when STDIN support implemented
+        let descriptor = {
+            let desc = opt.dest_descriptor.unwrap();
+            if is_ur_descriptor(desc.clone()) {
+                // safe
+                // this is UR format
+                parse_ur_descriptor(desc.clone())?
+            } else {
+                // this is bitcoin core compatible format
+                desc.to_string()
+            }
+        };
+
+        // TODO remove this when STDIN support implemented
+        let descriptor_chg = {
+            let desc = opt.dest_descriptor_chg.unwrap();
+            if is_ur_descriptor(desc.to_string()) {
+                // this is UR format
+                parse_ur_descriptor(desc.to_string())?
+            } else {
+                // this is bitcoin core compatible format
+                desc.to_string()
+            }
+        };
+
+        // user is sweeping to an output descriptor
+        let wallet_destination = Rc::new(Wallet::new_offline(
+            &descriptor,
+            None,
+            netw,
+            MemoryDatabase::default(),
+        )?);
+
+        let wallet_destination_chg = Rc::new(Wallet::new_offline(
+            &descriptor_chg,
+            None,
+            netw,
+            MemoryDatabase::default(),
+        )?);
+
+        fn get_child_indx<D: bdk::database::BatchDatabase, B>(
+            w: Rc<Wallet<B, D>>,
+            utxo: bdk::LocalUtxo,
+        ) -> Option<u32> {
+            for i in 0..20 {
+                // TODO
+                let addr = w.get_address(bdk::wallet::AddressIndex::Peek(i)).unwrap();
+                let address = Address::from_script(
+                    &utxo.txout.script_pubkey,
+                    bdk::bitcoin::Network::Testnet, // TODO
+                )
+                .unwrap(); // TODO
+                if addr == address {
+                    return Some(i);
+                }
+            } //TODO
+            None
+        }
+
+        let unspent = wallet.list_unspent().unwrap();
+        println!("unspent: {:?}", unspent);
+        {
+            let mut builder = wallet.build_tx();
+            //builder.drain_wallet();
+            let mut fee_combined: u64 = 0;
+
+            for u in unspent {
+                const P2WPKH_WITNESS_SIZE: usize = 73 + 33 + 2;
+                let weighted_utxo = bdk::WeightedUtxo {
+                    satisfaction_weight: P2WPKH_WITNESS_SIZE,
+                    utxo: bdk::Utxo::Local(u.clone()),
+                };
+
+                const TXIN_BASE_WEIGHT: usize = (32 + 4 + 4 + 1) * 4;
+                let fee = (TXIN_BASE_WEIGHT + weighted_utxo.satisfaction_weight) as f32 / 4.0
+                    * feerate.as_sat_vb();
+                let effective_value = weighted_utxo.utxo.txout().value as i64 - fee.ceil() as i64;
+                fee_combined = fee_combined + fee as u64;
+
+                let indx = get_child_indx(Rc::clone(&wallet_source), u.clone());
+                let indx_chg = get_child_indx(Rc::clone(&wallet_source_chg), u.clone());
+                let address_dest = if let Some(d) = indx {
+                    wallet_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
+                } else if let Some(d) = indx_chg {
+                    wallet_destination_chg.get_address(bdk::wallet::AddressIndex::Peek(d))?
+                } else {
+                    return Err(SweepError::new(
+                        "bip32 index".to_string(),
+                        "Address not found in output descriptor. Maybe increase the address gap"
+                            .to_string(),
+                    ));
+                };
+
+                println!("fee: {:?}", fee);
+                builder
+                    .manually_selected_only()
+                    .add_utxo(u.outpoint)
+                    .unwrap()
+                    .ordering(tx_builder::TxOrdering::Untouched)
+                    .add_recipient(address_dest.script_pubkey(), u.txout.value - fee as u64) // TODO script pubkey accoridng to new descirptor
+                    .enable_rbf();
+            }
+            builder.fee_absolute(fee_combined as u64);
+            builder.finish()?
+        }
     };
 
     println!(
-        "\n** psbt1: {}",
+        "DEBUG psbt: {}",
         serde_json::to_string_pretty(&psbt).unwrap()
     );
 
-    let tx = psbt.extract_tx();
-    // now bump fee:
-    let (mut psbt, _) = {
-        let mut builder = wallet.build_fee_bump(tx.txid())?;
-        builder.fee_rate(feerate);
-        builder.finish()?
-    };
-
-    println!(
-        "\n** psbt2: {}",
-        serde_json::to_string_pretty(&psbt).unwrap()
-    );
-
-    ////////////////7
     let out = CliOutput {
         amount: details.sent,
         fees: details.fees,
-        address: Some(addr.to_string()),
         timestamp: details.timestamp,
         txid: details.txid.to_string(),
         psbt: Psbt {
