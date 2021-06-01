@@ -5,6 +5,7 @@ use bdk::blockchain::{noop_progress, ElectrumBlockchain};
 use bdk::database::MemoryDatabase;
 use bdk::electrum_client::Client;
 use bdk::wallet::tx_builder;
+use bdk::wallet::AddressIndex::New;
 use bdk::Wallet;
 use clap::crate_version;
 use clap::Clap;
@@ -152,6 +153,15 @@ fn main() -> Result<(), SweepError> {
 
     /////// test:
 
+    let client2 = Client::new("ssl://electrum.blockstream.info:60002")?;
+    let wallet2 = Wallet::new(
+        "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)",
+        Some("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)"),
+        bdk::bitcoin::Network::Testnet,
+        MemoryDatabase::default(),
+        ElectrumBlockchain::from(client2)
+    )?;
+
     let unspent = wallet.list_unspent().unwrap();
     println!("*** unspent {:?}", unspent);
 
@@ -161,20 +171,36 @@ fn main() -> Result<(), SweepError> {
 
         for u in unspent {
             builder
-                .drain_wallet()
+                //.drain_wallet()
                 .manually_selected_only()
                 .add_utxo(u.outpoint)
                 .unwrap()
                 .ordering(tx_builder::TxOrdering::Untouched)
-                //.add_recipient(addr.script_pubkey(), u.txout.value) // script pubkey accoridng to new descirptor
-                .set_single_recipient(addr.script_pubkey())
+                .add_recipient(addr.script_pubkey(), u.txout.value) // script pubkey accoridng to new descirptor
+                //.set_single_recipient(wallet.get_address(New)?.script_pubkey())
                 .enable_rbf()
-                .fee_rate(feerate);
+                .fee_rate(bdk::FeeRate::from_sat_per_vb(0.0)); // temporarily set fees to 0 to build the Tx
         }
-
         builder.finish()?
     };
-    println!("\n** psbt: {:?}", psbt);
+
+    println!(
+        "\n** psbt1: {}",
+        serde_json::to_string_pretty(&psbt).unwrap()
+    );
+
+    let tx = psbt.extract_tx();
+    // now bump fee:
+    let (mut psbt, _) = {
+        let mut builder = wallet.build_fee_bump(tx.txid())?;
+        builder.fee_rate(feerate);
+        builder.finish()?
+    };
+
+    println!(
+        "\n** psbt2: {}",
+        serde_json::to_string_pretty(&psbt).unwrap()
+    );
 
     ////////////////7
     let out = CliOutput {
