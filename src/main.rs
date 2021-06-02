@@ -29,6 +29,7 @@ struct Psbt {
 struct CliOutput {
     amount: u64,
     fees: u64,
+    address: Vec<String>,
     timestamp: u64,
     txid: String,
     psbt: Psbt,
@@ -75,7 +76,7 @@ struct CliInput {
     #[clap(short, default_value = "6")]
     target: usize,
     /// Bitcoin network
-    #[clap(short, default_value = "testnet", possible_values=&["mainnet", "testnet"])]
+    #[clap(short, default_value = "testnet", possible_values=&["mainnet", "testnet", "regtest"])]
     network: String,
 }
 
@@ -116,13 +117,19 @@ fn main() -> Result<(), SweepError> {
         ));
     };
 
-    let client = Client::new("ssl://electrum.blockstream.info:60002")?;
+    let mut dest_addresses: Vec<String> = Vec::new();
 
+    let mut client_url = "ssl://electrum.blockstream.info:60002";
     let netw = if opt.network == "mainnet" {
         bdk::bitcoin::Network::Bitcoin
-    } else {
+    } else if opt.network == "testnet" {
         bdk::bitcoin::Network::Testnet
+    } else {
+        client_url = "127.0.0.1:51401";
+        bdk::bitcoin::Network::Regtest
     };
+
+    let client = Client::new(client_url)?;
 
     let wallet = Wallet::new(
         &descriptor,
@@ -164,6 +171,8 @@ fn main() -> Result<(), SweepError> {
             Address::from_str(&addr)?
         };
 
+        dest_addresses.push(addr.to_string());
+
         {
             let mut builder = wallet.build_tx();
             builder.drain_wallet();
@@ -199,6 +208,8 @@ fn main() -> Result<(), SweepError> {
             }
         };
 
+        //println!("********** 123");
+
         // user is sweeping to an output descriptor
         let wallet_destination = Rc::new(Wallet::new_offline(
             &descriptor,
@@ -217,16 +228,22 @@ fn main() -> Result<(), SweepError> {
         fn get_child_indx<D: bdk::database::BatchDatabase, B>(
             w: Rc<Wallet<B, D>>,
             utxo: bdk::LocalUtxo,
+            network: bdk::bitcoin::Network,
         ) -> Option<u32> {
+            //println!("cc utxo {:?}", utxo.clone());
             for i in 0..20 {
                 // TODO
                 let addr = w.get_address(bdk::wallet::AddressIndex::Peek(i)).unwrap();
+
                 let address = Address::from_script(
                     &utxo.txout.script_pubkey,
-                    bdk::bitcoin::Network::Testnet, // TODO
+                    network, // TODO
                 )
                 .unwrap(); // TODO
+
                 if addr == address {
+                    //println!("cc addr {:?}", addr);
+                    //println!("cc address {:?}", address);
                     return Some(i);
                 }
             } //TODO
@@ -234,7 +251,7 @@ fn main() -> Result<(), SweepError> {
         }
 
         let unspent = wallet.list_unspent().unwrap();
-        println!("unspent: {:?}", unspent);
+        //println!("unspent: {:?}", unspent);
         {
             let mut builder = wallet.build_tx();
             //builder.drain_wallet();
@@ -253,8 +270,11 @@ fn main() -> Result<(), SweepError> {
                 let effective_value = weighted_utxo.utxo.txout().value as i64 - fee.ceil() as i64;
                 fee_combined = fee_combined + fee as u64;
 
-                let indx = get_child_indx(Rc::clone(&wallet_source), u.clone());
-                let indx_chg = get_child_indx(Rc::clone(&wallet_source_chg), u.clone());
+                //println!("u.clone(): {:?}", u.clone());
+                let indx = get_child_indx(Rc::clone(&wallet_source), u.clone(), netw);
+                //println!("indx: {:?}", indx);
+                let indx_chg = get_child_indx(Rc::clone(&wallet_source_chg), u.clone(), netw);
+                //println!("indx_chg: {:?}", indx_chg);
                 let address_dest = if let Some(d) = indx {
                     wallet_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
                 } else if let Some(d) = indx_chg {
@@ -267,7 +287,10 @@ fn main() -> Result<(), SweepError> {
                     ));
                 };
 
-                println!("fee: {:?}", fee);
+                dest_addresses.push(address_dest.to_string());
+
+                //println!("fee: {:?}", fee);
+                //println!("address_dest: {:?}", address_dest);
                 builder
                     .manually_selected_only()
                     .add_utxo(u.outpoint)
@@ -281,14 +304,17 @@ fn main() -> Result<(), SweepError> {
         }
     };
 
-    println!(
-        "DEBUG psbt: {}",
-        serde_json::to_string_pretty(&psbt).unwrap()
-    );
+    /*
+        println!(
+            "DEBUG psbt: {}",
+            serde_json::to_string_pretty(&psbt).unwrap()
+        );
+    */
 
     let out = CliOutput {
         amount: details.sent,
         fees: details.fees,
+        address: dest_addresses,
         timestamp: details.timestamp,
         txid: details.txid.to_string(),
         psbt: Psbt {
@@ -297,7 +323,7 @@ fn main() -> Result<(), SweepError> {
         },
     };
 
-    //println!("{}", serde_json::to_string(&out)?);
+    println!("{}", serde_json::to_string(&out)?);
 
     Ok(())
 }
