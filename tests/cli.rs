@@ -21,7 +21,7 @@ fn help_subcommand() -> Result<(), Box<dyn std::error::Error>> {
 
 // run with: cargo test --features nigiri
 #[test]
-//#[cfg_attr(not(feature = "nigiri"), ignore)]
+#[cfg_attr(not(feature = "nigiri"), ignore)]
 fn h12() -> Result<(), Box<dyn std::error::Error>> {
     // Rx output descriptor:
     // "pkh([c258d2e4/44h/1h/0h]tpubD6NzVbkrYhZ4Yg9Rz1bXTTrc4TqZ8odbPaXrnrWX6cbDsXvH96FLDeRsckXohEkzGdAn5hbtK6iN7pCB1DeUpVwofEXCsN2StwWtU2SxE3f/0/*)"
