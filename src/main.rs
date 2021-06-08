@@ -62,8 +62,8 @@ struct CliInput {
     #[clap(short = 'c')]
     descriptor_chg: String,
     /// Address gap limit to search within for available funds
-    #[clap(short = 'g')]
-    address_gap_limit: Option<u32>,
+    #[clap(short = 'g', default_value = "20")]
+    address_gap_limit: u32,
     /// Bitcoin address in UR format or in Bitcoin Core compatible format.
     #[clap(short, group = "destination")]
     address: Option<String>,
@@ -158,7 +158,7 @@ fn main() -> Result<(), SweepError> {
 
     let feerate = wallet.client().estimate_fee(opt.target)?;
 
-    wallet.sync(noop_progress(), opt.address_gap_limit)?;
+    wallet.sync(noop_progress(), Some(opt.address_gap_limit))?;
 
     // Is user sweeping to an address or to an output descriptor?
     let (psbt, details) = if let Some(ref addr) = opt.address {
