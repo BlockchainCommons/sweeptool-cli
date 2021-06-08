@@ -40,6 +40,7 @@ Result:
 {                       (json object)
   "amount" : n,         (numeric) amount swept
   "fees" : n,           (numeric) miner fees [sats]
+  "address" : ["str"]   (array of strings) destination address(es)
   "timestamp": n,       (numeric) unix timestamp of the PSBT created
   "txid" : "str",       (string) Transaction ID
   "psbt" : {            (json object)

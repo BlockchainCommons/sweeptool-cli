@@ -29,7 +29,7 @@ that must match are: *PSBT*, *destination address* and the amount of *funds swep
 - [x] support for URs (btc descriptor, btc address, psbt)
 - [x] fee estimation
 - [x] error handling
-- [ ] sweep funds from descriptor to another descriptor
+- [x] sweep funds from descriptor to another descriptor
 - [ ] pass args vis STDIN
 
 ## Prerequisites
