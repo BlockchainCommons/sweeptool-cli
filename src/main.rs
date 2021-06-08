@@ -10,6 +10,7 @@ use bdk::Wallet;
 use clap::crate_version;
 use clap::{ArgGroup, Clap};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -18,6 +19,16 @@ use ur::{is_ur_address, is_ur_descriptor, parse_ur_descriptor, psbt_as_ur};
 
 mod errors;
 use errors::SweepError;
+
+fn parse_int(input: &str) -> Option<u32> {
+    input
+        .chars()
+        .skip_while(|ch| !ch.is_digit(10))
+        .take_while(|ch| ch.is_digit(10))
+        .fold(None, |acc, ch| {
+            ch.to_digit(10).map(|b| acc.unwrap_or(0) * 10 + b)
+        })
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Psbt {
@@ -255,22 +266,7 @@ fn main() -> Result<(), SweepError> {
         //println!("unspent: {:?}", unspent);
         {
             let mut builder = wallet.build_tx();
-            //builder.drain_wallet();
-            let mut fee_combined: u64 = 0;
-
-            for u in unspent {
-                const P2WPKH_WITNESS_SIZE: usize = 73 + 33 + 2;
-                let weighted_utxo = bdk::WeightedUtxo {
-                    satisfaction_weight: P2WPKH_WITNESS_SIZE,
-                    utxo: bdk::Utxo::Local(u.clone()),
-                };
-
-                const TXIN_BASE_WEIGHT: usize = (32 + 4 + 4 + 1) * 4;
-                let fee = (TXIN_BASE_WEIGHT + weighted_utxo.satisfaction_weight) as f32 / 4.0
-                    * feerate.as_sat_vb();
-                let effective_value = weighted_utxo.utxo.txout().value as i64 - fee.ceil() as i64;
-                fee_combined = fee_combined + fee as u64;
-
+            for u in &unspent {
                 //println!("u.clone(): {:?}", u.clone());
                 let indx = get_child_indx(Rc::clone(&wallet_source), u.clone(), netw);
                 //println!("indx: {:?}", indx);
@@ -297,10 +293,66 @@ fn main() -> Result<(), SweepError> {
                     .add_utxo(u.outpoint)
                     .unwrap()
                     .ordering(tx_builder::TxOrdering::Untouched)
-                    .add_recipient(address_dest.script_pubkey(), u.txout.value - fee as u64) // TODO script pubkey accoridng to new descirptor
+                    .add_recipient(address_dest.script_pubkey(), u.txout.value) // TODO script pubkey accoridng to new descirptor
                     .enable_rbf();
             }
-            builder.fee_absolute(fee_combined as u64);
+            builder.fee_rate(feerate);
+            let err = builder.finish();
+
+            if let Err(e) = err {
+                let mut err_str = e.to_string();
+                let err_str = err_str.replace("InsufficientFunds { needed: ", "");
+                let num = parse_int(&err_str).unwrap();
+
+                println!("err_str {:?}", err_str);
+
+                println!("num {:?}", num);
+
+                println!("details {:?}", details);
+
+                //println!("v {:?}", v);
+                //let v: Value = serde_json::from_str(&err_str)?;
+                //println!("v {:?}", v);
+            }
+
+            //let abs_fees = err.unwrap().needed - err.unwrap().available;
+
+            // here we get the size of our Tx. Now we can determine the fees
+            //let tx_weight = psbt.clone().extract_tx().get_weight();
+            //let fees_abs_per_utxo = /*tx_weight * */ feerate; //TODO div
+
+            let mut builder = wallet.build_tx();
+            for u in unspent {
+                //println!("u.clone(): {:?}", u.clone());
+                let indx = get_child_indx(Rc::clone(&wallet_source), u.clone(), netw);
+                //println!("indx: {:?}", indx);
+                let indx_chg = get_child_indx(Rc::clone(&wallet_source_chg), u.clone(), netw);
+                //println!("indx_chg: {:?}", indx_chg);
+                let address_dest = if let Some(d) = indx {
+                    wallet_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
+                } else if let Some(d) = indx_chg {
+                    wallet_destination_chg.get_address(bdk::wallet::AddressIndex::Peek(d))?
+                } else {
+                    return Err(SweepError::new(
+                        "bip32 index".to_string(),
+                        "Address not found in output descriptor. Maybe increase the address gap"
+                            .to_string(),
+                    ));
+                };
+
+                dest_addresses.push(address_dest.to_string());
+
+                //println!("fee: {:?}", fee);
+                //println!("address_dest: {:?}", address_dest);
+                builder
+                    .manually_selected_only()
+                    .add_utxo(u.outpoint)
+                    .unwrap()
+                    .ordering(tx_builder::TxOrdering::Untouched)
+                    .add_recipient(address_dest.script_pubkey(), u.txout.value) // TODO script pubkey accoridng to new descirptor
+                    .enable_rbf();
+            }
+            //builder.fee_absolute(fee_combined as u64);
             builder.finish()?
         }
     };
