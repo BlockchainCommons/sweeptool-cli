@@ -1,7 +1,11 @@
 use assert_cmd::prelude::*; // Add methods on commands
+use bdk::bitcoin::util::psbt::*;
 use bdk::bitcoin::Address;
 use bdk::bitcoin::Network;
+use bdk::blockchain::noop_progress;
+use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::MemoryDatabase;
+use bdk::electrum_client::Client;
 use bdk::Wallet;
 use predicates::prelude::*; // Used for writing assertions
 use serde_json::Value;
@@ -9,6 +13,7 @@ use std::process::Command;
 
 const SWEEPTOOL: &str = "sweeptool";
 const NIGIRI: &str = "nigiri";
+const CLIENT_URL: &str = "127.0.0.1:51401";
 
 #[test]
 fn help_subcommand() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,7 +31,7 @@ fn help_subcommand() -> Result<(), Box<dyn std::error::Error>> {
 // run with: cargo test --features nigiri
 #[test]
 #[cfg_attr(not(feature = "nigiri"), ignore)]
-fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
+fn test_sweeping() -> Result<(), Box<dyn std::error::Error>> {
     // Rx output descriptor:
     // "pkh([c258d2e4/44h/1h/0h]tpubD6NzVbkrYhZ4Yg9Rz1bXTTrc4TqZ8odbPaXrnrWX6cbDsXvH96FLDeRsckXohEkzGdAn5hbtK6iN7pCB1DeUpVwofEXCsN2StwWtU2SxE3f/0/*)"
     // 0. mn9qXHZsAQT6A1fkMvi5nmWmCzUEyLWZhv
@@ -162,7 +167,6 @@ fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
         if let Value::Object(m) = psbt {
             let psbt = m.get("base64").unwrap();
 
-            use bdk::bitcoin::util::psbt::*;
             let psbt = psbt.as_str().unwrap();
             let psbt: PartiallySignedTransaction =
                 bdk::bitcoin::consensus::deserialize(&base64::decode(psbt).unwrap()).unwrap();
@@ -245,7 +249,6 @@ fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
         if let Value::Object(m) = psbt {
             let psbt = m.get("base64").unwrap();
 
-            use bdk::bitcoin::util::psbt::*;
             let psbt = psbt.as_str().unwrap();
             let psbt: PartiallySignedTransaction =
                 bdk::bitcoin::consensus::deserialize(&base64::decode(psbt).unwrap()).unwrap();
@@ -280,15 +283,32 @@ fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
 
     // source: https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-010-output-desc.md#exampletest-vector-3
     let e_core_format = "sh(multi(2,022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01,03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe))";
-    let e_ur_format="ur:crypto-output/taadmhtaadmtoeadaoaolftaadeyoyaxhdclaodladvwvyhhsgeccapewflrfhrlbsfndlbkcwutahvwpeloleioksglwfvybkdradtaadeyoyaxhdclaxpstylrvowtstynguaspmchlenegonyryvtmsmtmsgshgvdbbsrhebybtztdisfrnpfadremh";
+    let e_ur_format= "ur:crypto-output/taadmhtaadmtoeadaoaolftaadeyoyaxhdclaodladvwvyhhsgeccapewflrfhrlbsfndlbkcwutahvwpeloleioksglwfvybkdradtaadeyoyaxhdclaxpstylrvowtstynguaspmchlenegonyryvtmsmtmsgshgvdbbsrhebybtztdisfrnpfadremh";
     // Let's first derive a few addresses from this descriptor so we can test against them later
     // We are expecting ~50 BTC on Rx address 1 and ~25 BTC on Rx address 3:
     use bdk::wallet::AddressIndex::New;
-    let wallet = Wallet::new_offline(e_core_format, None, Network::Regtest, MemoryDatabase::new())?;
-    let _addr_0 = wallet.get_address(New)?;
-    let addr_1 = wallet.get_address(New)?;
-    let _addr_2 = wallet.get_address(New)?;
-    let addr_3 = wallet.get_address(New)?;
+
+    let client = Client::new(CLIENT_URL)?;
+
+    let wallet_destination = Wallet::new_offline(
+        e_core_format,
+        Some(s),
+        Network::Regtest,
+        MemoryDatabase::default(),
+    )?;
+
+    let _addr_0 = wallet_destination.get_address(New)?;
+    let addr_1 = wallet_destination.get_address(New)?;
+    let _addr_2 = wallet_destination.get_address(New)?;
+    let addr_3 = wallet_destination.get_address(New)?;
+
+    let wallet_origin = Wallet::new(
+        c,
+        Some(d),
+        Network::Regtest,
+        MemoryDatabase::default(),
+        ElectrumBlockchain::from(client),
+    )?;
 
     cmd.arg("-d")
         .arg(d)
@@ -348,6 +368,62 @@ fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
             }
+        }
+    }
+
+    // TEST CASE: sweep to an address
+    let mut cmd = Command::cargo_bin(SWEEPTOOL)?;
+
+    let addr = "2NA2wt6vsNpENreZEydjevbuvg81v6Mej26";
+
+    cmd.arg("-d")
+        .arg(d)
+        .arg("-c")
+        .arg(c)
+        .arg("-a")
+        .arg(addr)
+        .arg("-n")
+        .arg("regtest")
+        .output()
+        .unwrap();
+
+    wallet_origin.sync(noop_progress(), None)?;
+
+    let out = cmd.output().unwrap();
+    let val: Value = serde_json::from_str(&String::from_utf8_lossy(&out.stdout))?;
+
+    if let Value::Object(m) = val {
+        let psbt = m.get("psbt").unwrap();
+        if let Value::Object(m) = psbt {
+            let psbt = m.get("base64").unwrap();
+
+            let psbt = psbt.as_str().unwrap();
+            let psbt: PartiallySignedTransaction =
+                bdk::bitcoin::consensus::deserialize(&base64::decode(psbt).unwrap()).unwrap();
+
+            let tx = psbt.clone().extract_tx();
+
+            assert_eq!(tx.output.len(), 1);
+
+            let address =
+                Address::from_script(&tx.output[0].script_pubkey, bdk::bitcoin::Network::Regtest)
+                    .unwrap();
+
+            assert_eq!(addr, address.to_string());
+
+            let source_amount = wallet_origin.get_balance().unwrap();
+            let destination_amount = tx.output[0].value;
+
+            let fees = source_amount - destination_amount;
+
+            cmd.assert()
+                .success()
+                .stdout(predicate::str::contains(format!(
+                    "{}{}",
+                    r#""fees":"#, fees
+                )));
+        } else {
+            panic!("output error");
         }
     }
 
