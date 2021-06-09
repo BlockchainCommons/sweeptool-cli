@@ -10,18 +10,25 @@ Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoind
 
 ` sweeptool-cli`  is currently under active development and in the late alpha testing phase. It should not be used for production tasks until it has had further testing and auditing.
 
-### Disclaimer
+###  ⚠️ Disclaimer
 
 There are some risks involved associated with the usage of *sweeptool*:
 
-1. This tool is based on a fairly large framework with lots of small and medium size dependencies.
+1. This tool is based on a fairly large framework with lots of small and medium sized dependencies.
 This presents a risk for a dependency or the package manager to get compromised.
+
 2. Using *sweeptool* with UR based format is fairly new and therefore experimental.
 
-Both of the risk may lead to a loss of funds. To mitigate this risk the user MUST
+Both of the risk (1 and 2) may lead to a loss of funds. To mitigate this risk user MUST
 double check the output results of *Sweeptool* with the input results
 of an (offline) signing device which user signs the PSBT with. Specifically, the entries
-that must match are: *PSBT*, *destination address* and the amount of *funds swept*.
+that MUST match are: *PSBT*, *destination address* and the amount of *funds swept*.
+
+
+3. Another risk is associated with sweeping the funds from output descriptors to
+output descriptors. Here the UTXOs get fragmented and may become dust in which case
+they will entirely be given to miners. Note, that the larger the number of UTXOs
+that hold a value below the miner fee, the worse the fee estimation function will work.
 
 ### Roadmap
 
