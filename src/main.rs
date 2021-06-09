@@ -5,12 +5,10 @@ use bdk::blockchain::{noop_progress, ElectrumBlockchain};
 use bdk::database::MemoryDatabase;
 use bdk::electrum_client::Client;
 use bdk::wallet::tx_builder;
-use bdk::wallet::AddressIndex::New;
 use bdk::Wallet;
 use clap::crate_version;
 use clap::{ArgGroup, Clap};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -20,13 +18,13 @@ use ur::{is_ur_address, is_ur_descriptor, parse_ur_descriptor, psbt_as_ur};
 mod errors;
 use errors::SweepError;
 
-fn parse_int(input: &str) -> Option<u32> {
+fn parse_int(input: &str) -> Option<u64> {
     input
         .chars()
         .skip_while(|ch| !ch.is_digit(10))
         .take_while(|ch| ch.is_digit(10))
         .fold(None, |acc, ch| {
-            ch.to_digit(10).map(|b| acc.unwrap_or(0) * 10 + b)
+            ch.to_digit(10).map(|b| acc.unwrap_or(0) * 10 + b as u64)
         })
 }
 
@@ -220,8 +218,6 @@ fn main() -> Result<(), SweepError> {
             }
         };
 
-        //println!("********** 123");
-
         // user is sweeping to an output descriptor
         let wallet_destination = Rc::new(Wallet::new_offline(
             &descriptor,
@@ -241,37 +237,39 @@ fn main() -> Result<(), SweepError> {
             w: Rc<Wallet<B, D>>,
             utxo: bdk::LocalUtxo,
             network: bdk::bitcoin::Network,
+            address_gap_limit: u32,
         ) -> Option<u32> {
-            //println!("cc utxo {:?}", utxo.clone());
-            for i in 0..20 {
+            for i in 0..address_gap_limit {
                 // TODO
                 let addr = w.get_address(bdk::wallet::AddressIndex::Peek(i)).unwrap();
 
-                let address = Address::from_script(
-                    &utxo.txout.script_pubkey,
-                    network, // TODO
-                )
-                .unwrap(); // TODO
+                let address = Address::from_script(&utxo.txout.script_pubkey, network).unwrap(); // TODO
 
                 if addr == address {
-                    //println!("cc addr {:?}", addr);
-                    //println!("cc address {:?}", address);
                     return Some(i);
                 }
-            } //TODO
+            }
             None
         }
 
         let unspent = wallet.list_unspent().unwrap();
-        //println!("unspent: {:?}", unspent);
         {
+            // here we construct a psbt with zero fees so we can determine Tx size
+            // Based on Tx size we can construct a rael psbt with real fees in the next stage
             let mut builder = wallet.build_tx();
             for u in &unspent {
-                //println!("u.clone(): {:?}", u.clone());
-                let indx = get_child_indx(Rc::clone(&wallet_source), u.clone(), netw);
-                //println!("indx: {:?}", indx);
-                let indx_chg = get_child_indx(Rc::clone(&wallet_source_chg), u.clone(), netw);
-                //println!("indx_chg: {:?}", indx_chg);
+                let indx = get_child_indx(
+                    Rc::clone(&wallet_source),
+                    u.clone(),
+                    netw,
+                    opt.address_gap_limit,
+                );
+                let indx_chg = get_child_indx(
+                    Rc::clone(&wallet_source_chg),
+                    u.clone(),
+                    netw,
+                    opt.address_gap_limit,
+                );
                 let address_dest = if let Some(d) = indx {
                     wallet_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
                 } else if let Some(d) = indx_chg {
@@ -286,48 +284,47 @@ fn main() -> Result<(), SweepError> {
 
                 dest_addresses.push(address_dest.to_string());
 
-                //println!("fee: {:?}", fee);
-                //println!("address_dest: {:?}", address_dest);
                 builder
                     .manually_selected_only()
                     .add_utxo(u.outpoint)
                     .unwrap()
                     .ordering(tx_builder::TxOrdering::Untouched)
-                    .add_recipient(address_dest.script_pubkey(), u.txout.value) // TODO script pubkey accoridng to new descirptor
+                    .add_recipient(address_dest.script_pubkey(), u.txout.value)
                     .enable_rbf();
             }
             builder.fee_rate(feerate);
             let err = builder.finish();
 
-            if let Err(e) = err {
-                let mut err_str = e.to_string();
-                let err_str = err_str.replace("InsufficientFunds { needed: ", "");
-                let num = parse_int(&err_str).unwrap();
+            let fee_per_utxo = if let Err(e) = err {
+                let err_str = e.to_string();
 
-                println!("err_str {:?}", err_str);
+                let split = err_str.split(",");
+                let vec = split.collect::<Vec<&str>>();
 
-                println!("num {:?}", num);
+                let needed = parse_int(&vec[0]).unwrap();
+                let available = parse_int(&vec[1]).unwrap();
 
-                println!("details {:?}", details);
+                (needed - available) as u64 / unspent.len() as u64
+            } else {
+                panic!("fees error");
+            };
 
-                //println!("v {:?}", v);
-                //let v: Value = serde_json::from_str(&err_str)?;
-                //println!("v {:?}", v);
-            }
-
-            //let abs_fees = err.unwrap().needed - err.unwrap().available;
-
-            // here we get the size of our Tx. Now we can determine the fees
-            //let tx_weight = psbt.clone().extract_tx().get_weight();
-            //let fees_abs_per_utxo = /*tx_weight * */ feerate; //TODO div
-
+            // Now  we can construct a PSBT with real fees:
             let mut builder = wallet.build_tx();
-            for u in unspent {
-                //println!("u.clone(): {:?}", u.clone());
-                let indx = get_child_indx(Rc::clone(&wallet_source), u.clone(), netw);
-                //println!("indx: {:?}", indx);
-                let indx_chg = get_child_indx(Rc::clone(&wallet_source_chg), u.clone(), netw);
-                //println!("indx_chg: {:?}", indx_chg);
+            let mut fee_combined = 0;
+            for u in &unspent {
+                let indx = get_child_indx(
+                    Rc::clone(&wallet_source),
+                    u.clone(),
+                    netw,
+                    opt.address_gap_limit,
+                );
+                let indx_chg = get_child_indx(
+                    Rc::clone(&wallet_source_chg),
+                    u.clone(),
+                    netw,
+                    opt.address_gap_limit,
+                );
                 let address_dest = if let Some(d) = indx {
                     wallet_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
                 } else if let Some(d) = indx_chg {
@@ -335,24 +332,30 @@ fn main() -> Result<(), SweepError> {
                 } else {
                     return Err(SweepError::new(
                         "bip32 index".to_string(),
-                        "Address not found in output descriptor. Maybe increase the address gap"
+                        "Address not found in output descriptor. Maybe increase the address gap limit"
                             .to_string(),
                     ));
                 };
 
                 dest_addresses.push(address_dest.to_string());
 
-                //println!("fee: {:?}", fee);
-                //println!("address_dest: {:?}", address_dest);
+                let recipient_amount = if u.txout.value > fee_per_utxo {
+                    fee_combined += fee_per_utxo;
+                    u.txout.value - fee_per_utxo
+                } else {
+                    fee_combined += u.txout.value;
+                    0
+                };
+
                 builder
                     .manually_selected_only()
                     .add_utxo(u.outpoint)
                     .unwrap()
                     .ordering(tx_builder::TxOrdering::Untouched)
-                    .add_recipient(address_dest.script_pubkey(), u.txout.value) // TODO script pubkey accoridng to new descirptor
+                    .add_recipient(address_dest.script_pubkey(), recipient_amount)
                     .enable_rbf();
             }
-            //builder.fee_absolute(fee_combined as u64);
+            builder.fee_absolute(fee_combined);
             builder.finish()?
         }
     };
