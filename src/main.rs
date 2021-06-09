@@ -195,6 +195,10 @@ fn main() -> Result<(), SweepError> {
         }
     } else {
         // build a PSBT sweeping to an output descriptor
+        // We are gonna prepare here individual wallets (descriptor, descriptor_chg, descriptor_destination,
+        // descriptor_destination_chg) so we can easily
+        // search for address indices when mapping UTXOs from a source descriptor to a
+        // destination descriptor
 
         // TODO remove this when STDIN support implemented
         let descriptor = {
@@ -243,11 +247,8 @@ fn main() -> Result<(), SweepError> {
             address_gap_limit: u32,
         ) -> Option<u32> {
             for i in 0..address_gap_limit {
-                // TODO
                 let addr = w.get_address(bdk::wallet::AddressIndex::Peek(i)).unwrap();
-
                 let address = Address::from_script(&utxo.txout.script_pubkey, network).unwrap(); // TODO
-
                 if addr == address {
                     return Some(i);
                 }
