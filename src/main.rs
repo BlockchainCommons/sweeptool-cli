@@ -18,6 +18,7 @@ use ur::{is_ur_address, is_ur_descriptor, parse_ur_descriptor, psbt_as_ur};
 mod errors;
 use errors::SweepError;
 
+// parse the first integer in a string
 fn parse_int(input: &str) -> Option<u64> {
     input
         .chars()
@@ -149,7 +150,6 @@ fn main() -> Result<(), SweepError> {
         ElectrumBlockchain::from(client),
     )?;
 
-    // TEST
     // user is sweeping to an output descriptor
     let wallet_source = Rc::new(Wallet::new_offline(
         &descriptor,
@@ -175,8 +175,8 @@ fn main() -> Result<(), SweepError> {
             return Err(SweepError::new(
                 "cli arg".to_string(),
                 "UR address not implemented".to_string(),
-            ));
-            //decode_ur_address(opt.address)?
+            )); // TODO
+                //decode_ur_address(opt.address)?
         } else {
             Address::from_str(&addr)?
         };
@@ -184,6 +184,7 @@ fn main() -> Result<(), SweepError> {
         dest_addresses.push(addr.to_string());
 
         {
+            // build a PSBT sweeping to an address
             let mut builder = wallet.build_tx();
             builder.drain_wallet();
             builder
@@ -193,6 +194,8 @@ fn main() -> Result<(), SweepError> {
             builder.finish()?
         }
     } else {
+        // build a PSBT sweeping to an output descriptor
+
         // TODO remove this when STDIN support implemented
         let descriptor = {
             let desc = opt.dest_descriptor.unwrap();
@@ -219,14 +222,14 @@ fn main() -> Result<(), SweepError> {
         };
 
         // user is sweeping to an output descriptor
-        let wallet_destination = Rc::new(Wallet::new_offline(
+        let descriptor_destination = Rc::new(Wallet::new_offline(
             &descriptor,
             None,
             netw,
             MemoryDatabase::default(),
         )?);
 
-        let wallet_destination_chg = Rc::new(Wallet::new_offline(
+        let descriptor_destination_chg = Rc::new(Wallet::new_offline(
             &descriptor_chg,
             None,
             netw,
@@ -271,9 +274,9 @@ fn main() -> Result<(), SweepError> {
                     opt.address_gap_limit,
                 );
                 let address_dest = if let Some(d) = indx {
-                    wallet_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
+                    descriptor_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
                 } else if let Some(d) = indx_chg {
-                    wallet_destination_chg.get_address(bdk::wallet::AddressIndex::Peek(d))?
+                    descriptor_destination_chg.get_address(bdk::wallet::AddressIndex::Peek(d))?
                 } else {
                     return Err(SweepError::new(
                         "bip32 index".to_string(),
@@ -326,9 +329,9 @@ fn main() -> Result<(), SweepError> {
                     opt.address_gap_limit,
                 );
                 let address_dest = if let Some(d) = indx {
-                    wallet_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
+                    descriptor_destination.get_address(bdk::wallet::AddressIndex::Peek(d))?
                 } else if let Some(d) = indx_chg {
-                    wallet_destination_chg.get_address(bdk::wallet::AddressIndex::Peek(d))?
+                    descriptor_destination_chg.get_address(bdk::wallet::AddressIndex::Peek(d))?
                 } else {
                     return Err(SweepError::new(
                         "bip32 index".to_string(),
