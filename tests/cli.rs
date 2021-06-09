@@ -130,6 +130,7 @@ fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
 
     thread::sleep(Duration::from_millis(1000));
 
+    // TEST CASE:
     let mut cmd = Command::cargo_bin(SWEEPTOOL)?;
 
     let c="pkh([c258d2e4/44h/1h/0h]tpubD6NzVbkrYhZ4Yg9Rz1bXTTrc4TqZ8odbPaXrnrWX6cbDsXvH96FLDeRsckXohEkzGdAn5hbtK6iN7pCB1DeUpVwofEXCsN2StwWtU2SxE3f/1/*)";
@@ -151,7 +152,6 @@ fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     let out = cmd.output().unwrap();
-
     let val: Value = serde_json::from_str(&String::from_utf8_lossy(&out.stdout))?;
 
     if let Value::Object(m) = val {
@@ -198,6 +198,73 @@ fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     assert_eq!(
                         "bcrt1q5v2fh8ne73ysc0cx8ynuh474hy2vauz2r8zvnt",
+                        address.to_string()
+                    );
+                }
+            }
+        }
+    }
+
+    // TEST CASE: Let's test the same CMD with a smaller address gap limit of 1:
+    let mut cmd = Command::cargo_bin(SWEEPTOOL)?;
+
+    let c="pkh([c258d2e4/44h/1h/0h]tpubD6NzVbkrYhZ4Yg9Rz1bXTTrc4TqZ8odbPaXrnrWX6cbDsXvH96FLDeRsckXohEkzGdAn5hbtK6iN7pCB1DeUpVwofEXCsN2StwWtU2SxE3f/1/*)";
+    let d="pkh([c258d2e4/44h/1h/0h]tpubD6NzVbkrYhZ4Yg9Rz1bXTTrc4TqZ8odbPaXrnrWX6cbDsXvH96FLDeRsckXohEkzGdAn5hbtK6iN7pCB1DeUpVwofEXCsN2StwWtU2SxE3f/0/*)";
+    let e="wpkh([c258d2e4/84h/1h/1h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)";
+    let s="wpkh([c258d2e4/84h/1h/1h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)";
+
+    cmd.arg("-d")
+        .arg(d)
+        .arg("-c")
+        .arg(c)
+        .arg("-e")
+        .arg(e)
+        .arg("-s")
+        .arg(s)
+        .arg("-n")
+        .arg("regtest")
+        .arg("-g")
+        .arg("1")
+        .output()
+        .unwrap();
+
+    // With an address gap limit=1 we should register only 12.5BTC on Chg address 0:
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""amount":1250000000"#));
+
+    // Let's parse the PSBT:
+    let out = cmd.output().unwrap();
+    let val: Value = serde_json::from_str(&String::from_utf8_lossy(&out.stdout))?;
+
+    if let Value::Object(m) = val {
+        let psbt = m.get("psbt").unwrap();
+        if let Value::Object(m) = psbt {
+            let psbt = m.get("base64").unwrap();
+
+            use bdk::bitcoin::util::psbt::*;
+            let psbt = psbt.as_str().unwrap();
+            let psbt: PartiallySignedTransaction =
+                bdk::bitcoin::consensus::deserialize(&base64::decode(psbt).unwrap()).unwrap();
+
+            let tx = psbt.clone().extract_tx();
+
+            // We must have exactly 1 destination address
+            assert_eq!(tx.output.len(), 1);
+
+            for i in 0..tx.output.len() {
+                let address = Address::from_script(
+                    &tx.output[i].script_pubkey,
+                    bdk::bitcoin::Network::Regtest,
+                )
+                .unwrap();
+
+                // The amount sent to the destination address should be a little lower than 1_250_000_000
+                if tx.output[i].value < 1_250_000_000 && tx.output[i].value > 625_000_000 {
+                    // The receiving address should be of index 0 on the destination output
+                    // descriptor for Change purpose (Chg)
+                    assert_eq!(
+                        "bcrt1qpqmnwemer994g7lguut207cxm4dry8p5a2c3hc",
                         address.to_string()
                     );
                 }
