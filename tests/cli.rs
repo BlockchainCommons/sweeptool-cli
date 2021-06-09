@@ -1,5 +1,8 @@
 use assert_cmd::prelude::*; // Add methods on commands
 use bdk::bitcoin::Address;
+use bdk::bitcoin::Network;
+use bdk::database::MemoryDatabase;
+use bdk::Wallet;
 use predicates::prelude::*; // Used for writing assertions
 use serde_json::Value;
 use std::process::Command;
@@ -265,6 +268,82 @@ fn test_sweeping_to_descriptors() -> Result<(), Box<dyn std::error::Error>> {
                     // descriptor for Change purpose (Chg)
                     assert_eq!(
                         "bcrt1qpqmnwemer994g7lguut207cxm4dry8p5a2c3hc",
+                        address.to_string()
+                    );
+                }
+            }
+        }
+    }
+
+    // TEST CASE: let's sweep the funds to some other destination (Rcv) output descriptor in UR format
+    let mut cmd = Command::cargo_bin(SWEEPTOOL)?;
+
+    // source: https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-010-output-desc.md#exampletest-vector-3
+    let e_core_format = "sh(multi(2,022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01,03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe))";
+    let e_ur_format="ur:crypto-output/taadmhtaadmtoeadaoaolftaadeyoyaxhdclaodladvwvyhhsgeccapewflrfhrlbsfndlbkcwutahvwpeloleioksglwfvybkdradtaadeyoyaxhdclaxpstylrvowtstynguaspmchlenegonyryvtmsmtmsgshgvdbbsrhebybtztdisfrnpfadremh";
+    // Let's first derive a few addresses from this descriptor so we can test against them later
+    // We are expecting ~50 BTC on Rx address 1 and ~25 BTC on Rx address 3:
+    use bdk::wallet::AddressIndex::New;
+    let wallet = Wallet::new_offline(e_core_format, None, Network::Regtest, MemoryDatabase::new())?;
+    let _addr_0 = wallet.get_address(New)?;
+    let addr_1 = wallet.get_address(New)?;
+    let _addr_2 = wallet.get_address(New)?;
+    let addr_3 = wallet.get_address(New)?;
+
+    cmd.arg("-d")
+        .arg(d)
+        .arg("-c")
+        .arg(c)
+        .arg("-e")
+        .arg(e_ur_format)
+        .arg("-s")
+        .arg(s)
+        .arg("-n")
+        .arg("regtest")
+        .output()
+        .unwrap();
+
+    let out = cmd.output().unwrap();
+    let val: Value = serde_json::from_str(&String::from_utf8_lossy(&out.stdout))?;
+
+    if let Value::Object(m) = val {
+        let psbt = m.get("psbt").unwrap();
+        if let Value::Object(m) = psbt {
+            let psbt = m.get("base64").unwrap();
+
+            use bdk::bitcoin::util::psbt::*;
+            let psbt = psbt.as_str().unwrap();
+            let psbt: PartiallySignedTransaction =
+                bdk::bitcoin::consensus::deserialize(&base64::decode(psbt).unwrap()).unwrap();
+
+            let tx = psbt.clone().extract_tx();
+
+            // No additional change addresses must be created:
+            assert_eq!(tx.output.len(), 4);
+
+            for i in 0..tx.output.len() {
+                let address = Address::from_script(
+                    &tx.output[i].script_pubkey,
+                    bdk::bitcoin::Network::Regtest,
+                )
+                .unwrap();
+
+                // Here we are checking if the amounts are correctly sent to addresses of destination
+                // output descriptors which match the source output descriptor by its type (Rcv or Chg) and index.
+                if tx.output[i].value > 2_500_000_000 {
+                    // 50 BTC (minus fees) from Rx address 1 of the source output descriptor must map
+                    // to Rx address 1 of the destination output descriptor
+                    assert_eq!(addr_1.to_string(), address.to_string());
+                } else if tx.output[i].value > 1_250_000_000 {
+                    assert_eq!(addr_3.to_string(), address.to_string());
+                } else if tx.output[i].value > 625_000_000 {
+                    assert_eq!(
+                        "bcrt1qpqmnwemer994g7lguut207cxm4dry8p5a2c3hc",
+                        address.to_string()
+                    );
+                } else {
+                    assert_eq!(
+                        "bcrt1q5v2fh8ne73ysc0cx8ynuh474hy2vauz2r8zvnt",
                         address.to_string()
                     );
                 }
