@@ -19,7 +19,7 @@ This presents a risk for a dependency or the package manager to get compromised.
 
 2. Using *sweeptool* with UR based format is fairly new and therefore experimental.
 
-Both of the risk (1 and 2) may lead to a loss of funds. To mitigate this risk user MUST
+Both of the risks (1 and 2) may lead to a loss of funds. To mitigate this risk user MUST
 double check the output results of *Sweeptool* with the input results
 of an (offline) signing device which user signs the PSBT with. Specifically, the entries
 that MUST match are: *PSBT*, *destination address* and the amount of *funds swept*.

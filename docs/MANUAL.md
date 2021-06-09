@@ -53,7 +53,7 @@ OPTIONS:
 ```bash
 $ D="wpkh([c258d2e4/84h/1h/1h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)" 
 $ C="wpkh([c258d2e4/84h/1h/1h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)"
-A="mvCntejWFwemnhSsCU51s7UKHqV37jn41V"
+$ A="mvCntejWFwemnhSsCU51s7UKHqV37jn41V"
 
 $ sweeptool -d $D -c $C -a $A -n testnet
 
