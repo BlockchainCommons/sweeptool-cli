@@ -1,9 +1,12 @@
 use bdk::bitcoin::consensus::serialize;
 use bdk::bitcoin::Address;
+use bdk::blockchain::esplora::EsploraBlockchainConfig;
+use bdk::blockchain::noop_progress;
 use bdk::blockchain::Blockchain;
-use bdk::blockchain::{noop_progress, ElectrumBlockchain};
+use bdk::blockchain::{
+    AnyBlockchain, AnyBlockchainConfig, ConfigurableBlockchain, ElectrumBlockchainConfig,
+};
 use bdk::database::MemoryDatabase;
-use bdk::electrum_client::Client;
 use bdk::wallet::tx_builder;
 use bdk::Wallet;
 use clap::crate_version;
@@ -89,6 +92,11 @@ struct CliInput {
     /// Bitcoin network
     #[clap(short, default_value = "testnet", possible_values=&["mainnet", "testnet", "regtest"])]
     network: String,
+    /// By default electrum server is used ssl://electrum.blockstream.info:60002 to query blockchain.
+    /// But you can override it with an esplora server of your choice
+    /// Examples: https://blockstream.info/testnet/api for testnet and https://blockstream.info/api for mainnet
+    #[clap(long)]
+    esplora: Option<String>,
 }
 
 fn main() -> Result<(), SweepError> {
@@ -140,14 +148,30 @@ fn main() -> Result<(), SweepError> {
         bdk::bitcoin::Network::Regtest
     };
 
-    let client = Client::new(client_url)?;
+    let config_electrum = AnyBlockchainConfig::Electrum(ElectrumBlockchainConfig {
+        url: client_url.to_string(),
+        socks5: None,
+        retry: 2,
+        timeout: None,
+    });
+
+    let config_esplora = if let Some(e) = opt.esplora {
+        Some(AnyBlockchainConfig::Esplora(EsploraBlockchainConfig {
+            base_url: e,
+            concurrency: Some(4),
+        }))
+    } else {
+        None
+    };
+
+    let config = config_esplora.unwrap_or(config_electrum);
 
     let wallet = Wallet::new(
         &descriptor,
         Some(&descriptor_chg),
         netw,
         MemoryDatabase::default(),
-        ElectrumBlockchain::from(client),
+        AnyBlockchain::from_config(&config)?,
     )?;
 
     // user is sweeping to an output descriptor
@@ -249,7 +273,7 @@ fn main() -> Result<(), SweepError> {
             for i in 0..address_gap_limit {
                 let addr = w.get_address(bdk::wallet::AddressIndex::Peek(i)).unwrap();
                 let address = Address::from_script(&utxo.txout.script_pubkey, network).unwrap(); // TODO
-                if addr == address {
+                if addr.address == address {
                     return Some(i);
                 }
             }
@@ -257,6 +281,7 @@ fn main() -> Result<(), SweepError> {
         }
 
         let unspent = wallet.list_unspent().unwrap();
+
         {
             // here we construct a psbt with zero fees so we can determine Tx size
             // Based on Tx size we can construct a rael psbt with real fees in the next stage
