@@ -3,7 +3,9 @@
 
 ### _by [Gorazd Kovacic](https://www.github.com/gorazdko) and [Christopher Allen](https://www.github.com/ChristopherA)_
 
-Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoindevkit/bdk) and [Uniform Resources](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-005-ur.md). Funds can be swept either to an address or to another output descriptor by preserving the number of UTXOs.
+Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoindevkit/bdk) (bdk) and [Uniform Resources](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-005-ur.md). Funds can be swept either to an address or to another output descriptor by preserving the number of UTXOs.
+
+Sweeptool connects to an Electrum server hosted by Blockstream or an Esplora server of your choice and synchronizes the list of transactions received and available UTXOs. Based on this information sweeptool produces a PSBT which can be signed by an offline signing device.
 
 
 ## Status - Late Alpha
@@ -27,8 +29,10 @@ that MUST match are: *PSBT*, *destination address* and the amount of *funds swep
 
 3. Another risk is associated with sweeping the funds from output descriptors to
 output descriptors. Here the UTXOs get fragmented and may become dust in which case
-they will entirely be given to miners. Note, that the larger the number of UTXOs
+they will entirely be given to miners. Note, that the larger the portion of UTXOs
 that hold a value below the miner fee, the worse the fee estimation function will work.
+Every UTXO (non dust) pays the same amount in fees.
+
 
 ### Roadmap
 
@@ -80,8 +84,6 @@ In most cases, the authors, copyright, and license for each file reside in heade
 
 
 ### Libraries
-
-The following external libraries are used with `sweeptool-cli`:
 
 External libraries are listed in [cargo.toml]().
 

@@ -95,7 +95,7 @@ struct CliInput {
     /// By default electrum server is used ssl://electrum.blockstream.info:60002 to query blockchain.
     /// But you can override it with an esplora server of your choice
     /// Examples: https://blockstream.info/testnet/api for testnet and https://blockstream.info/api for mainnet
-    #[clap(long)]
+    #[clap(short = 'p', long)]
     esplora: Option<String>,
 }
 

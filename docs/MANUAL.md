@@ -33,7 +33,8 @@ FLAGS:
 OPTIONS:
     -a <address>                    Bitcoin address in UR format or in Bitcoin Core compatible
                                     format
-    -g <address-gap-limit>          Address gap limit to search within for available funds
+    -g <address-gap-limit>          Address gap limit to search within for available funds [default:
+                                    20]
     -d <descriptor>                 Descriptor in UR format or in Bitcoin Core compatible format
     -c <descriptor-chg>             Change descriptor in UR format or in Bitcoin core compatible
                                     format
@@ -41,6 +42,11 @@ OPTIONS:
                                     compatible format
     -s <dest-descriptor-chg>        Destination change descriptor in UR format or in Bitcoin core
                                     compatible format
+    -p, --esplora <esplora>         By default electrum server is used
+                                    ssl://electrum.blockstream.info:60002 to query blockchain. But
+                                    you can override it with an esplora server of your choice
+                                    Examples: https://blockstream.info/testnet/api for testnet and
+                                    https://blockstream.info/api for mainnet
     -n <network>                    Bitcoin network [default: testnet] [possible values: mainnet,
                                     testnet, regtest]
     -t <target>                     Target (number of blocks) used to estimate the fee rate for a
@@ -69,6 +75,17 @@ $ S="wpkh([c258d2e4/84h/1h/1h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6
 $ sweeptool -d $D -c $C -e $E -s $S -n testnet
 
 {"amount":4818721,"fees":204,"address":["tb1qvctwrh8ckrex8daxya4xleaevcp299ttd9gnev","tb1qj3vpzz3y8dh5sasy72vars9td7clxl7vjx3d66","tb1q0603sw88qlyjh0lsru2vw2kesy7hjdkmcqxzn9"],"timestamp":1623176297,"txid":"6526d8d7fd8bb50ea9b8ece41088f41048731ea7210fe603cd335a1d9a540f2b","psbt":{"base64":"cHNidP8BAOIBAAAAA0AQQpSzpG4N3Kiid0cXsRt2/X840rJyEE5rjhIPOL93AAAAAAD9////9NszvjHiY1dURTm+6BWVXwUx0nN0fQAwURPBWWbzE1kBAAAAAP3////6hGH1NoDu0TkivxgLPklyax24x2Y2TiopZP2BQeYUBQEAAAAA/f///wPmRDsAAAAAABYAFGYW4dz4sPJjt6Ynam/nuWYCopVrXqYNAAAAAAAWABSUWBEKJDtvSHYE8pnRwKtvsfN/zBGbAAAAAAAAFgAUfp8YOOcHySu/8B8UxyrZgT15NtsAAAAAAAEA+QIAAAAAAQEq9LTcP3kMgOoUsM5irUWCi7y4+yOCUcnMv3LeVt4i0AEAAAAXFgAUVwlFBhnHm2QtDIp9ex+z9Fqveif+////AipFOwAAAAAAGXapFG7UGD9NVtNGbabpOmyFc6iJe+sZiKxbuaLbAQAAABepFDBjuLYR3sCmMlBsNBikCDzszQp4hwJHMEQCIGJN3ouDh8owX1hlAR2DIVHFVRC1Z2Aah2LTod0Y3FFzAiBlKfEtcdrSY4A3faH3VDeGQdP524wR0ivMhnzi8a2oqwEhAxlrU4gpKdq4S8tItykRpRNkAXbN17ZWrfFCIqxFluylTf4XACIGAmv3DeI8RLWSrtOJy7PKuJsNPRa1ImWfMwtJqhHNMxpaGMJY0uQsAACAAQAAgAAAAIAAAAAAAQAAAAABAOsCAAAAAfdDyNpKHwvMp6k4z9E0omyHdQIIhpPoyH66X46izuCPAQAAAGtIMEUCIQC5+JD6q17iNmbuLgq27+RnmWQUkjUyqguPDuVGq9KDKwIgZUVJScWPiya/y2+ri/JUKB0jNblX1M72mVN89q+TM4UBIQObwaoLY1ALU/l6O76A1oxPfiWuF0FChLIG8qAFQPayFP3///8CoIYBAAAAAAAiACBUjrY/Gyytc5VGb3G/Wr5h+8VJhBtgAaj1uO0d/I62kaKmDQAAAAAAGXapFJ4xkq+453GWxiAfjEcHsZNoovGTiKz3Bx4AIgYDTwqoPip7/CGozSSjPFXo0iAbsLJSpMduy9AawtLcslkYwljS5CwAAIABAACAAAAAgAEAAAAIAAAAAAEA6wIAAAABlcAeN+p+igOk4EXJTzNI8ZcCYeo7sA2cdvYYCKGbLBEAAAAAa0gwRQIhAKSk6NfU9AOinX6JzCecXVba9S8QZav/RSbHAHkvErsAAiAGCvaIAEyvRbd2I6qeQwvDQ/QlEEvNI15w0Y6HnzpFfgEhAoDwrFNm2UdMH1+YJ25efZ4W+sCnu2sIWOe5nTsC2507/f///wIQJwAAAAAAACIAINVNb3zExjY/e58Z1d8JhgHH1od3sW6IGPQDrQOf4MEFVZsAAAAAAAAZdqkUsr8jVMxTfBKqkvHh3BckghB+pYGIrJkUHgAiBgLelm7Ag6p0ryVLu7v0xOpcJ9WEU3PZHSkf8ykuwlGeOxjCWNLkLAAAgAEAAIAAAACAAQAAAAkAAAAAAAAA","ur":"ur:crypto-psbt/hkaakijojkidjyzmadaevoadaeaeaeaxfzbefwmwqdoxjtbtuopdoektflchpacwkozclbettdprjpbegljemnbgbsetrsktaeaeaeaeaezczmzmzmwkuyeornehvoiahgghfeesrnvsbzmdheahehtdjkjykiaedygybwsehkiywfbwhkadaeaeaeaezczmzmzmzslrhsykenlawyttescprscsbdfmgajpjecarostiyengldrdtiezclyfpvabbahadaeaeaeaezczmzmzmaxvafyfraeaeaeaeaecmaebbiycmvyuoyapfwziarloldiimjlvdrhiyaooemdjehyolbtaeaeaeaeaecmaebbmwhdbybkdkfrjlfdkoaawznlttrtpyjlpawflbsfbyndaeaeaeaeaeaecmaebbkbnecsetvdatsodnrswtctbbstdrtalyfskkenuyaeaeaeaeaeadaeytaoaeaeaeaeadaddrwkqzuofhkkbnlawdbbpftoidpmfelflurfrozocnlfgysosfrsjpuehfuecptiadaeaeaechcmaebbhgasfeamcfstndiedpbnlekikgctqdwkhtpekndizezmzmzmaodrfefraeaeaeaeaecfkoptbbjttycsfhgthftefgjnolwlftjzlpjkpdldkgwmcflopshprhoeuyadaeaeaechptbbdyiarorpbyuertoleygdjzeecsoxayfnwpsnbkksltaofldyfyaocxidgtuelulsltsgdyhehdihadcalsclgyskgobereiohncyltidteoyutcsuogyjkaocxihdtwndpjstntdialaemkioyylghemlnfpteytuylkbytddnsflnkevownpmpdpyadclaxcfjegulodtdttnrogrsbfdrldtbyonbwieadkosntsrphfpmwnfwcppsfemtwpongtzechaecpamaojeylbtvofnfyremoplteldsbqdsgrondbtfscmrecpihneeobdgapkbysneocyhtcssahdtdvedwaeaelaadaeaelaaeaeaelaaeaeaeaeadaeaeaeaeadaewmaoaeaeaeadylfxsptngectbdsfosptettktteeoejzltkpaoaylnmuvsspkbrdhemnoetovtmyadaeaeaejefddyfeaoclaerhyamhzspyhyvoeniywydmbkrpwsveionliebbmoeceypkbdmybavwfgpytdlsdnaocxihfegagaskmyludsrssbjlpyluwzghdecacnecrhhgtytoynnlgukeynpemueolpadclaxndsepkbdiagdbdguytknfrrnlatblkgwkbdaplchfpfwlrpramwznbahfzynprbbzczmzmzmaonblnadaeaeaeaeaecpaecxghmnrpfhcwdwpmjkmdfgjljsrshtrnhszoskgalrcwhnadpdykrowecaztmnrpmeoeolbtaeaeaeaeaecfkoptbbnnehmoperovdjsmtswcxctlkflatpamuisoewnmulopsylatckaecpamaxgwbkpdfmdrkgztclpdsndkotfngovstdcxcwpfprgmoxstjtsbticysatduoprhkcssahdtdvedwaeaelaadaeaelaaeaeaelaadaeaeaeayaeaeaeaeadaewmaoaeaeaeadmdrtckemwdkbleaxoxvtfesogweofdwnmsaohswdfrpfbtnskoyncsayoynddwbyaeaeaeaejefddyfeaoclaeoxoxvststywkaxoentkbldsfdinshlhftnykdlbeihpyzmfedsstaekkdlbgrkaeaocxambkynloaegspeferlkocnpknnfxbdsrfxwkdabegrsncnhyjottmnltneftfekbadclaolawtpsguiytaflgscthemkdijthykinncmzsrtosrkjeayhdvdrhntfraouyntfrzczmzmzmaobediaeaeaeaeaeaecpaecxtlgtjlkessswenfhkgnecftluraslnadsttbltktpajtlocswkaxpmaxnevtseahgondaeaeaeaeaeaecfkoptbbprrscnghsfgukebgpkmownvyuochdklfbekbonlylopsnlbbckaecpamaouemtjtrtlspkjypedagrrkrkwksswdhhditllrgujktacadtctwfdtdmsagynnfrcssahdtdvedwaeaelaadaeaelaaeaeaelaadaeaeaeasaeaeaeaeaeaeaegwksreoe"}}
+```
+
+### Provide an Esplora server of your choice
+
+By default electrum server is used `ssl://electrum.blockstream.info:60002` to query blockchain. But
+you can override it with an esplora server of your choice, e.g.
+* https://blockstream.info/testnet/api for testnet
+* https://blockstream.info/api for mainnet
+
+```bash
+$ sweeptool -d $D -c $C -a mvuvhgT5DUjpQ2LBWQhujiFGDZiDHGdHa7 --esplora https://blockstream.info/testnet/api -n testnet
 ```
 
 ### Accessing Specific Fields
