@@ -5,12 +5,12 @@
 
 Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoindevkit/bdk) (bdk) and [Uniform Resources](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-005-ur.md). Funds can be swept either to an address or to another output descriptor by preserving the number of UTXOs.
 
-Sweeptool connects to an Electrum server hosted by Blockstream or an Esplora server of your choice and synchronizes the list of transactions received and available UTXOs. Based on this information sweeptool produces a PSBT which can be signed by an offline signing device.
+`Sweeptool` connects to an Electrum server hosted by Blockstream or a server of your choice (including Esplora or Electrum server via Tor onion address) and synchronizes the list of transactions received and available UTXOs. Based on this information `sweeptool` produces a PSBT which can be signed by an offline signing device.
 
 
 ## Status - Late Alpha
 
-` sweeptool-cli`  is currently under active development and in the late alpha testing phase. It should not be used for production tasks until it has had further testing and auditing.
+`sweeptool-cli`  is currently under active development and in the late alpha testing phase. It should not be used for production tasks until it has had further testing and auditing.
 
 ###  ⚠️ Disclaimer
 
@@ -22,7 +22,7 @@ This presents a risk for a dependency or the package manager to get compromised.
 2. Using *sweeptool* with UR based format is fairly new and therefore experimental.
 
 Both of the risks (1 and 2) may lead to a loss of funds. To mitigate this risk user MUST
-double check the output results of *Sweeptool* with the input results
+double check the output results of *sweeptool* with the input results
 of an (offline) signing device which user signs the PSBT with. Specifically, the entries
 that MUST match are: *PSBT*, *destination address* and the amount of *funds swept*.
 
@@ -41,6 +41,7 @@ Every UTXO (non dust) pays the same amount in fees.
 - [x] fee estimation
 - [x] error handling
 - [x] sweep funds from descriptor to another descriptor
+- [x] access servers via Tor onion address (proxy)
 - [ ] pass args vis STDIN
 
 ## Prerequisites

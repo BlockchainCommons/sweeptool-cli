@@ -49,8 +49,17 @@ OPTIONS:
                                     https://blockstream.info/api for mainnet
     -n <network>                    Bitcoin network [default: testnet] [possible values: mainnet,
                                     testnet, regtest]
+        --proxy <proxy>             You can pass a proxy e.g. localhost:9050 and then pass an onion
+                                    address of an Electrum server to the server arg, e.g.
+                                    explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion:143
+                                    for testnet
+        --server <server>           Electrum server to query the blockchain.
+                                    Default="ssl://electrum.blockstream.info:60002" In regtest mode
+                                    127.0.0.1:51401 is hardcoded [default:
+                                    ssl://electrum.blockstream.info:60002]
     -t <target>                     Target (number of blocks) used to estimate the fee rate for a
                                     PSBT [default: 6]
+
 ```
 
 
@@ -86,6 +95,14 @@ you can override it with an esplora server of your choice, e.g.
 
 ```bash
 $ sweeptool -d $D -c $C -a mvuvhgT5DUjpQ2LBWQhujiFGDZiDHGdHa7 --esplora https://blockstream.info/testnet/api -n testnet
+```
+
+### Access Electrum Server behind a Tor onion address
+
+Here we validate our UTXOs via Electrum server of the Blockstream Esplora.
+
+```bash
+$ sweeptool -d $D -c $C -a mvuvhgT5DUjpQ2LBWQhujiFGDZiDHGdHa7 --server explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion:143 --proxy localhost:9050
 ```
 
 ### Accessing Specific Fields

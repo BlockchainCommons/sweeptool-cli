@@ -104,6 +104,7 @@ struct CliInput {
     /// You can pass a proxy e.g. localhost:9050 and then pass an onion address of an Electrum server
     /// to the server arg, e.g.
     /// explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion:143 for testnet
+    #[clap(long)]
     proxy: Option<String>,
 }
 
