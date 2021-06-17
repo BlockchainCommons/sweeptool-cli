@@ -97,6 +97,14 @@ struct CliInput {
     /// Examples: https://blockstream.info/testnet/api for testnet and https://blockstream.info/api for mainnet
     #[clap(short = 'p', long)]
     esplora: Option<String>,
+    /// Electrum server to query the blockchain. Default="ssl://electrum.blockstream.info:60002"
+    /// In regtest mode 127.0.0.1:51401 is hardcoded.
+    #[clap(long, default_value = "ssl://electrum.blockstream.info:60002")]
+    server: String,
+    /// You can pass a proxy e.g. localhost:9050 and then pass an onion address of an Electrum server
+    /// to the server arg, e.g.
+    /// explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion:143 for testnet
+    proxy: Option<String>,
 }
 
 fn main() -> Result<(), SweepError> {
@@ -138,19 +146,19 @@ fn main() -> Result<(), SweepError> {
 
     let mut dest_addresses: Vec<String> = Vec::new();
 
-    let mut client_url = "ssl://electrum.blockstream.info:60002";
+    let mut client_url = opt.server;
     let netw = if opt.network == "mainnet" {
         bdk::bitcoin::Network::Bitcoin
     } else if opt.network == "testnet" {
         bdk::bitcoin::Network::Testnet
     } else {
-        client_url = "127.0.0.1:51401";
+        client_url = "127.0.0.1:51401".to_string();
         bdk::bitcoin::Network::Regtest
     };
 
     let config_electrum = AnyBlockchainConfig::Electrum(ElectrumBlockchainConfig {
         url: client_url.to_string(),
-        socks5: None,
+        socks5: opt.proxy,
         retry: 2,
         timeout: None,
     });
