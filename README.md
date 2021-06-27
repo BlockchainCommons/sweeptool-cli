@@ -42,7 +42,6 @@ Every UTXO (non dust) pays the same amount in fees.
 - [x] error handling
 - [x] sweep funds from descriptor to another descriptor
 - [x] access servers via Tor onion address (proxy)
-- [ ] pass args vis STDIN
 
 ## Prerequisites
 
@@ -62,6 +61,12 @@ To run tests:
 
 ```bash
 $ cargo test
+```
+
+Run tests with regtest network (requires installing https://github.com/vulpemventures/nigiri):
+
+```bash
+cargo test --features nigiri
 ```
 
 Alternatively, you can build the executable like so
