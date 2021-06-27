@@ -158,20 +158,18 @@ fn main() -> Result<(), SweepError> {
     };
 
     let config_electrum = AnyBlockchainConfig::Electrum(ElectrumBlockchainConfig {
-        url: client_url.to_string(),
+        url: client_url,
         socks5: opt.proxy,
         retry: 2,
         timeout: None,
     });
 
-    let config_esplora = if let Some(e) = opt.esplora {
-        Some(AnyBlockchainConfig::Esplora(EsploraBlockchainConfig {
+    let config_esplora = opt.esplora.map(|e| {
+        AnyBlockchainConfig::Esplora(EsploraBlockchainConfig {
             base_url: e,
             concurrency: Some(4),
-        }))
-    } else {
-        None
-    };
+        })
+    });
 
     let config = config_esplora.unwrap_or(config_electrum);
 
@@ -239,10 +237,10 @@ fn main() -> Result<(), SweepError> {
             if is_ur_descriptor(desc.clone()) {
                 // safe
                 // this is UR format
-                parse_ur_descriptor(desc.clone())?
+                parse_ur_descriptor(desc)?
             } else {
                 // this is bitcoin core compatible format
-                desc.to_string()
+                desc
             }
         };
 
@@ -251,10 +249,10 @@ fn main() -> Result<(), SweepError> {
             let desc = opt.dest_descriptor_chg.unwrap();
             if is_ur_descriptor(desc.to_string()) {
                 // this is UR format
-                parse_ur_descriptor(desc.to_string())?
+                parse_ur_descriptor(desc)?
             } else {
                 // this is bitcoin core compatible format
-                desc.to_string()
+                desc
             }
         };
 
@@ -336,7 +334,7 @@ fn main() -> Result<(), SweepError> {
             let fee_per_utxo = if let Err(e) = err {
                 let err_str = e.to_string();
 
-                let split = err_str.split(",");
+                let split = err_str.split(',');
                 let vec = split.collect::<Vec<&str>>();
 
                 let needed = parse_int(&vec[0]).unwrap();
