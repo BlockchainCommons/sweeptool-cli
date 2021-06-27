@@ -95,7 +95,7 @@ struct CliInput {
     /// By default electrum server is used ssl://electrum.blockstream.info:60002 to query blockchain.
     /// But you can override it with an esplora server of your choice
     /// Examples: https://blockstream.info/testnet/api for testnet and https://blockstream.info/api for mainnet
-    #[clap(short = 'p', long)]
+    #[clap(short = 'p', long, conflicts_with = "server")]
     esplora: Option<String>,
     /// Electrum server to query the blockchain. Default="ssl://electrum.blockstream.info:60002"
     /// In regtest mode 127.0.0.1:51401 is hardcoded.
@@ -104,7 +104,7 @@ struct CliInput {
     /// You can pass a proxy e.g. localhost:9050 and then pass an onion address of an Electrum server
     /// to the server arg, e.g.
     /// explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion:143 for testnet
-    #[clap(long)]
+    #[clap(long, conflicts_with = "esplora")]
     proxy: Option<String>,
 }
 
