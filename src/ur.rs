@@ -128,6 +128,7 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
                                 obj.components_str
                                     .push_str(&format!("[{:08x}", obj.source_fingerprint));
                             } else {
+                                // this should not happen according to current ur spec
                                 obj.components_str.push_str("[m");
                             }
                         }
@@ -166,6 +167,11 @@ impl<'a, 'de> Deserialize<'de> for CryptoKeyPath {
 
                         if i == a.len() - 1 - 1 {
                             obj.components_str.push(']');
+                        }
+                        if a.len() <= 2 {
+                            // if we have only one or no child index in derivation path we actually
+                            // don't prepend anything to the xpub
+                            obj.components_str = "".to_string();
                         }
                     }
                     let source_fingerprint = m.get(&Value::Integer(2));
@@ -439,13 +445,26 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Result<Box<Value>, SweepEr
                     0
                 };
 
+                let parent_fingerprint = if let Some(ref origin) = hdkey.origin {
+                    let l = origin.components.len();
+                    if l == 1 && origin.source_fingerprint != 0 {
+                        // If `origin` contains only a single derivation step and also contains `source-fingerprint`,
+                        // then `parent-fingerprint` MUST be identical to `source-fingerprint` or may be omitted.
+                        origin.source_fingerprint
+                    } else {
+                        hdkey.parent_fingerprint.unwrap_or(0)
+                    }
+                } else {
+                    hdkey.parent_fingerprint.unwrap_or(0)
+                };
+
                 let xpub = bdk::bitcoin::util::bip32::ExtendedPubKey {
                     network: bdk::bitcoin::Network::try_from(net).map_err(|_| {
                         SweepError::new("xpub".to_string(), "wrong network".to_string())
                     })?,
                     depth,
                     parent_fingerprint: bdk::bitcoin::util::bip32::Fingerprint::from(
-                        &hdkey.parent_fingerprint.unwrap_or(0).to_be_bytes()[..],
+                        &parent_fingerprint.to_be_bytes()[..],
                     ),
                     child_number: childnumber,
                     public_key: bdk::bitcoin::PublicKey::from_slice(&keydata[..])?,
@@ -552,12 +571,12 @@ pub fn parse_ur_desc(val: Value, out: &mut String) -> Result<Box<Value>, SweepEr
 fn outputdesc_test_vector_5() -> Result<(), SweepError> {
     let  inp = hex::decode("d90191d90196a201010282d9012fa403582103cbcaa9c98c877a26977d00825c956a238e8dddfbd322cce4f74b0b5bd6ace4a704582060499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd968906d90130a1030007d90130a1018601f400f480f4d9012fa403582102fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea045820f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c06d90130a2018200f4021abd16bee507d90130a1018600f400f480f4").unwrap();
     let data: Value = serde_cbor::from_slice(&inp).unwrap();
+    let expected = "wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/1/0/*,xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/0/0/*))";
     let mut out = String::new();
     parse_ur_desc(data, &mut out)?;
     println!("\noutput descriptor: {:?}", out);
 
-    // TODO this test case is incorrect in the spec, because it is missing
-    // the parent fingeprint in cbor notation
+    assert_eq!(expected, out);
 
     Ok(())
 }
