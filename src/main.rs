@@ -48,7 +48,8 @@ struct CliOutput {
     psbt: Psbt,
 }
 
-const ABOUT: &str = r#"Sweeptool creates a PSBT for the funds you want to sweep from a Bitcoin output descriptor.
+// TODO
+const _ABOUT: &str = r#"Sweeptool creates a PSBT for the funds you want to sweep from a Bitcoin output descriptor.
 Result:
 {                       (json object)
   "amount" : n,         (numeric) amount swept
@@ -124,7 +125,7 @@ struct SignPSBT {
 }
 
 #[derive(Clap, Debug)]
-#[clap(version=crate_version!(), about=ABOUT)]
+#[clap(version=crate_version!())]
 enum Opt {
     /// Sweep funds
     Sweep(CliInput),
