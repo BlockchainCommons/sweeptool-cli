@@ -5,7 +5,7 @@
 
 Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoindevkit/bdk) (bdk) and [Uniform Resources](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-005-ur.md). Funds can be swept either to an address or to another output descriptor by preserving the number of UTXOs.
 
-`Sweeptool` connects to an Electrum server hosted by Blockstream or a server of your choice (including Esplora or Electrum server via Tor onion address) and synchronizes the list of transactions received and available UTXOs. Based on this information `sweeptool` produces a PSBT which can be signed by an offline signing device.
+`Sweeptool` connects to an Electrum server hosted by Blockstream or a server of your choice (including Esplora or Electrum server via Tor onion address) and synchronizes the list of transactions received and available UTXOs. Based on this information `sweeptool` produces a PSBT which can be signed by an offline signing device or by the tool itself.
 
 
 ## Status - Late Alpha
@@ -42,6 +42,7 @@ Every UTXO (non dust) pays the same amount in fees.
 - [x] error handling
 - [x] sweep funds from descriptor to another descriptor
 - [x] access servers via Tor onion address (proxy)
+- [x] signing a PSBT
 
 ## Prerequisites
 
