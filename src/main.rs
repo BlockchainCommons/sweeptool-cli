@@ -138,11 +138,17 @@ fn main() -> Result<(), SweepError> {
 
     match matches {
         Opt::Sign(cmd) => {
+            let netw = if cmd.network == "mainnet" {
+                bdk::bitcoin::Network::Bitcoin
+            } else {
+                bdk::bitcoin::Network::Testnet
+            };
+
             use bdk::bitcoin::consensus::deserialize;
             let wallet = Wallet::new_offline(
                 &cmd.descriptor,
                 Some(&cmd.descriptor_chg),
-                bdk::bitcoin::Network::Testnet,
+                netw,
                 MemoryDatabase::default(),
             )?;
 
