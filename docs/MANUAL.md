@@ -9,7 +9,7 @@ The *help* command explains the usage and the result of the sweeptool.
 
 ```bash
 $ sweeptool -h
-sweeptool-cli 0.1.0
+sweeptool-cli 0.2.0
 
 USAGE:
     sweeptool <SUBCOMMAND>
@@ -21,25 +21,13 @@ FLAGS:
 SUBCOMMANDS:
     help     Prints this message or the help of the given subcommand(s)
     sign     Sign a PSBT
-    sweep    Sweep funds
+    sweep    Sweep from a Bitcoin output descriptor
 
 
 
 $ sweeptool sweep -h
 
-Sweep funds from an output descriptor.
-Result:
-{                       (json object)
-  "amount" : n,         (numeric) amount swept
-  "fees" : n,           (numeric) miner fees [sats]
-  "address" : ["str"]   (array of strings) destination address(es)
-  "timestamp": n,       (numeric) unix timestamp of the PSBT created
-  "txid" : "str",       (string) Transaction ID
-  "psbt" : {            (json object)
-     "base64" : "str",  (string) psbt in base64 format
-     "ur" : "str"       (string) psbt in UR format
-   }
-}
+Sweep from a Bitcoin output descriptor
 
 USAGE:
     sweeptool sweep [OPTIONS] -d <descriptor> -c <descriptor-chg> <-a <address>|-e <dest-descriptor>>
@@ -77,6 +65,49 @@ OPTIONS:
                                     ssl://electrum.blockstream.info:60002]
     -t <target>                     Target (number of blocks) used to estimate the fee rate for a
                                     PSBT [default: 6]
+
+
+Result:
+{                       (json object)
+  "amount" : n,         (numeric) amount swept
+  "fees" : n,           (numeric) miner fees [sats]
+  "address" : ["str"]   (array of strings) destination address(es)
+  "timestamp": n,       (numeric) unix timestamp of the PSBT created
+  "txid" : "str",       (string) Transaction ID
+  "psbt" : {            (json object)
+     "base64" : "str",  (string) psbt in base64 format
+     "ur" : "str"       (string) psbt in UR format
+   }
+}
+
+
+
+$ sweeptool sweep -h
+
+Sign a PSBT
+
+USAGE:
+    sweeptool sign [OPTIONS] <psbt> -d <descriptor> -c <descriptor-chg>
+
+ARGS:
+    <psbt>    PSBT in Bitcoin Core compatible format
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -d <descriptor>            Private descriptor in Bitcoin Core compatible format
+    -c <descriptor-chg>        Private change descriptor in Bitcoin core compatible format
+    -n <network>               Bitcoin network [default: testnet] [possible values: mainnet,
+                               testnet, regtest]
+
+
+Result:
+{                    (json object)
+  "base64" : "str",  (string) signed psbt in base64 format
+  "ur" : "str"       (string) signed psbt in UR format
+}
 ```
 
 ### Sweep Funds from an Output Descriptor to an Address
