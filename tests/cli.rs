@@ -1,4 +1,5 @@
 use assert_cmd::prelude::*; // Add methods on commands
+use bdk::bitcoin::consensus::serialize;
 use bdk::bitcoin::util::psbt::*;
 use bdk::bitcoin::Address;
 use bdk::bitcoin::Network;
@@ -135,6 +136,9 @@ fn test_sweeping() -> Result<(), Box<dyn std::error::Error>> {
         .arg("mrqSutMAGBAont2XR3NY56VoY9QQRUAM2n")
         .output()
         .unwrap();
+
+    // generate some more blocks to later sweep and sign funds without getting premature spend of coinbase
+    generate_blocks();
 
     thread::sleep(Duration::from_millis(1000));
 
@@ -401,9 +405,9 @@ fn test_sweeping() -> Result<(), Box<dyn std::error::Error>> {
         if let Value::Object(m) = psbt {
             let psbt = m.get("base64").unwrap();
 
-            let psbt = psbt.as_str().unwrap();
+            let psbt_str = psbt.as_str().unwrap();
             let psbt: PartiallySignedTransaction =
-                bdk::bitcoin::consensus::deserialize(&base64::decode(psbt).unwrap()).unwrap();
+                bdk::bitcoin::consensus::deserialize(&base64::decode(psbt_str).unwrap()).unwrap();
 
             let tx = psbt.clone().extract_tx();
 
@@ -426,6 +430,53 @@ fn test_sweeping() -> Result<(), Box<dyn std::error::Error>> {
                     "{}{}",
                     r#""fees":"#, fees
                 )));
+
+            // TEST CASE: sign a PSBT and verify if the signed PSBT is valid
+            let mut cmd = Command::cargo_bin(SWEEPTOOL)?;
+            // xpriv: tprv8ZgxMBicQKsPfD7e6Mvw44CVVSKcyUSgpGw5WLUDgLnq33fWWhRk39p1ScW8Potbk7PRf3vv6XWN5CpwcY1Xwke6aegWg6y82Agt9FnxCFV
+            let c="pkh([c258d2e4/44h/1h/0h]tprv8ZgxMBicQKsPfD7e6Mvw44CVVSKcyUSgpGw5WLUDgLnq33fWWhRk39p1ScW8Potbk7PRf3vv6XWN5CpwcY1Xwke6aegWg6y82Agt9FnxCFV/1/*)";
+            let d="pkh([c258d2e4/44h/1h/0h]tprv8ZgxMBicQKsPfD7e6Mvw44CVVSKcyUSgpGw5WLUDgLnq33fWWhRk39p1ScW8Potbk7PRf3vv6XWN5CpwcY1Xwke6aegWg6y82Agt9FnxCFV/0/*)";
+
+            cmd.arg("sign")
+                .arg("-d")
+                .arg(d)
+                .arg("-c")
+                .arg(c)
+                .arg(psbt_str)
+                .output()
+                .unwrap();
+
+            let out = cmd.output().unwrap();
+            let val: Value = serde_json::from_str(&String::from_utf8_lossy(&out.stdout))?;
+
+            if let Value::Object(m) = val {
+                let psbt = m.get("base64").unwrap();
+                let psbt_str = psbt.as_str().unwrap();
+                let psbt: PartiallySignedTransaction =
+                    bdk::bitcoin::consensus::deserialize(&base64::decode(psbt_str).unwrap())
+                        .unwrap();
+                let tx = psbt.clone().extract_tx();
+                let raw_tx = hex::encode(serialize(&tx));
+
+                let tx_hex = format!(r#"["{}"]"#, raw_tx);
+
+                let mut nigiri = Command::new(NIGIRI);
+                nigiri
+                    .arg("rpc")
+                    .arg("testmempoolaccept")
+                    .arg(tx_hex)
+                    .output()
+                    .unwrap();
+
+                let out = nigiri.output().unwrap();
+                let output_str = &String::from_utf8_lossy(&out.stdout);
+
+                assert!(output_str.contains("\"allowed\": true"));
+            } else {
+                panic!("json is missing a field");
+            }
+
+            //println!("*** {:?}", val);
         } else {
             panic!("output error");
         }
