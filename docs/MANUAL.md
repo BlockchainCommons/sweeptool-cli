@@ -112,6 +112,8 @@ Result:
 
 ### Sweep Funds from an Output Descriptor to an Address
 
+You can use **Sweeptool** to sweep funds from a descriptor (`-d`) and a change descriptor (`-c`) to a new address (`-a`).
+
 ```bash
 $ D="wpkh([c258d2e4/84h/1h/1h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)" 
 $ C="wpkh([c258d2e4/84h/1h/1h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)"
@@ -123,6 +125,8 @@ $ sweeptool sweep -d $D -c $C -a $A -n testnet
 ```
 
 ### Sweep Funds from an Output Descriptor to an Output descriptor
+
+You can alternatively sweep to a new descriptor (`-e`) and its change descriptor (`-s`).
 
 ```bash
 $ E="wpkh([c258d2e4/84h/1h/1h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)" 
@@ -136,7 +140,7 @@ $ sweeptool sweep -d $D -c $C -e $E -s $S -n testnet
 ### Provide an Esplora server of your choice
 
 By default electrum server is used `ssl://electrum.blockstream.info:60002` to query blockchain. But
-you can override it with an esplora server of your choice, e.g.
+you can override it (`--esplora`) with an esplora server of your choice, e.g.
 * https://blockstream.info/testnet/api for testnet
 * https://blockstream.info/api for mainnet
 
@@ -146,13 +150,15 @@ $ sweeptool sweep -d $D -c $C -a mvuvhgT5DUjpQ2LBWQhujiFGDZiDHGdHa7 --esplora ht
 
 ### Access Electrum Server behind a Tor onion address
 
-Here we validate our UTXOs via Electrum server of the Blockstream Esplora.
+You can also define a specific Electrum server (`--server`) to validate UTXOs.
 
 ```bash
 $ sweeptool sweep -d $D -c $C -a mvuvhgT5DUjpQ2LBWQhujiFGDZiDHGdHa7 --server explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion:143 --proxy localhost:9050
 ```
 
 ### Signing a PSBT
+
+Instead of sweeping to an address or a new descriptor, you can instead sweep to a PSBT.
 
 ```bash
 $ D="wpkh([df4cd1b2/48h/1h/0h/2h]tprv8i2Zqn1v72sJunpNRwQaEFBNGQ8extLZauN3DY6RAkCa62GX59h3CHrvNhL7ycehLQ7Q3MqQqp42wgDwJL8Nxjgvz71gWDA9Uwb7QQMYqza/0/*)"
@@ -167,7 +173,7 @@ $ sweeptool sign -d $D -c $C $PSBT
 
 ### Accessing Specific Fields
 
-If you want to access a specific field only you can use **jq** (a command-line JSON processor) for that. Let's access 
+If you want to access a specific field only you can use **jq** (a command-line JSON processor) for that. For example, to access 
 a PSBT in UR format:
 
 ```bash
