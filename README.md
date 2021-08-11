@@ -1,12 +1,12 @@
 # Blockchain Commons `sweeptool-cli`
 
-
 ### _by [Gorazd Kovacic](https://www.github.com/gorazdko) and [Christopher Allen](https://www.github.com/ChristopherA)_
+
+* <img src="https://github.com/BlockchainCommons/Gordian/blob/master/Images/logos/gordian-icon.png" width=16 valign="bottom"> ***part of the [gordian](https://github.com/BlockchainCommons/gordian/blob/master/README.md) technology family***
 
 Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoindevkit/bdk) (bdk) and [Uniform Resources](https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-005-ur.md). Funds can be swept either to an address or to another output descriptor by preserving the number of UTXOs.
 
 `Sweeptool` connects to an Electrum server hosted by Blockstream or a server of your choice (including Esplora or Electrum server via Tor onion address) and synchronizes the list of transactions received and available UTXOs. Based on this information `sweeptool` produces a PSBT which can be signed by an offline signing device or by the tool itself.
-
 
 ## Status - Late Alpha
 
@@ -16,23 +16,21 @@ Tool for sweeping bitcoin based on [Bitcoin Dev Kit](https://github.com/bitcoind
 
 There are some risks involved associated with the usage of *sweeptool*:
 
-1. This tool is based on a fairly large framework with lots of small and medium sized dependencies.
+1. This tool is based on a fairly large framework with lots of small- and medium-sized dependencies.
 This presents a risk for a dependency or the package manager to get compromised.
 
-2. Using *sweeptool* with UR based format is fairly new and therefore experimental.
+2. Using *sweeptool* with UR-based format is fairly new and therefore experimental.
 
 Both of the risks (1 and 2) may lead to a loss of funds. To mitigate this risk user MUST
-double check the output results of *sweeptool* with the input results
+double-check the output results of *sweeptool* with the input results
 of an (offline) signing device which user signs the PSBT with. Specifically, the entries
 that MUST match are: *PSBT*, *destination address* and the amount of *funds swept*.
-
 
 3. Another risk is associated with sweeping the funds from output descriptors to
 output descriptors. Here the UTXOs get fragmented and may become dust in which case
 they will entirely be given to miners. Note, that the larger the portion of UTXOs
 that hold a value below the miner fee, the worse the fee estimation function will work.
 Every UTXO (non dust) pays the same amount in fees.
-
 
 ### Roadmap
 
@@ -50,7 +48,7 @@ Make sure you have [Rust and Cargo](https://doc.rust-lang.org/cargo/getting-star
 
 ## Installation Instructions
 
-In the project root run:
+Download this repo and in the project root run:
 
 ```bash
 $ cargo run
@@ -64,7 +62,7 @@ To run tests:
 $ cargo test
 ```
 
-Run tests with regtest network (requires installing https://github.com/vulpemventures/nigiri):
+To run tests with regtest network (requires installing https://github.com/vulpemventures/nigiri):
 
 ```bash
 cargo test --features nigiri
@@ -82,6 +80,17 @@ It will be generated in `target/debug/`
 ## Usage Instructions
 
 See [Manual](docs/MANUAL.md)
+
+## Gordian Principles
+
+**Sweeptool** is a reference implementation meant to display the [Gordian Principles](https://github.com/BlockchainCommons/Gordian#gordian-principles), which are philosophical and technical underpinnings to Blockchain Commons' Gordian technology. This includes:
+
+* **Independence.** Sweeptool allows you to confidentially manage your own descriptor wallet.
+* **Privacy.** By focusing on descriptor technology, Sweeptool ensures that you have an infinite array of disposable addresses.
+* **Resilience.** Sweeptool is built to minimize the chances of losing funds when you sweep forward from a descriptor wallet.
+* **Openness.** Sweeptool is built on the open descriptor specification for Bitcoin.
+
+Blockchain Commons apps do not phone home and do not run ads. Some are available through various app stores; all are available in our code repositories for your usage.
 
 ## Origin, Authors, Copyright & Licenses
 
