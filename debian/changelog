@@ -1,0 +1,5 @@
+sweeptool-cli (0.1.0-1) UNRELEASED; urgency=medium
+
+  * Initial release. (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- unknown <nik@unknown>  Tue, 14 Feb 2023 03:27:31 +0300
