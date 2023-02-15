@@ -1,0 +1,7 @@
+target/release/.fingerprint/
+target/release/deps/
+target/release/build/
+target/debug/
+target/debug/build/
+target/\..json
+target/CACHEDIR.TAG

@@ -1,0 +1,23 @@
+Source: sweeptool-cli
+Section: unknown
+Priority: optional
+Maintainer: Gorazd Kovacic <gorazdko@gmail.com>
+Rules-Requires-Root: no
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-cargo,
+ libssl-dev (<= 1.1.1),
+Standards-Version: 4.6.1
+Homepage: https://github.com/BlockchainCommons/sweeptool-cli
+#Vcs-Browser: https://salsa.debian.org/debian/sweeptool-cli
+#Vcs-Git: https://salsa.debian.org/debian/sweeptool-cli.git
+
+Package: sweeptool-cli
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ libssl1.1 (<= 1.1.1),
+Description: Tool for sweeping bitcoin UTXOs.
+ `Sweeptool` connects to an Electrum server hosted by Blockstream or a server of your choice (including Esplora or Electrum server via Tor onion address) and synchronizes the list of transactions received and available UTXOs. Based on this information `sweeptool` produces a PSBT which can be signed by an offline signing device or by the tool itself.
+
