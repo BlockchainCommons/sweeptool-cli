@@ -17,5 +17,5 @@ Depends:
  ${shlibs:Depends},
  ${misc:Depends},
 Description: Tool for sweeping bitcoin UTXOs.
- Sweeptool connects to an Electrum server hosted by Blockstream or a server of your choice (including Esplora or Electrum server via Tor onion address) and synchronizes the list of transactions received and available UTXOs. Based on this information `sweeptool` produces a PSBT which can be signed by an offline signing device or by the tool itself.
+ `Sweeptool` connects to an Electrum server hosted by Blockstream or a server of your choice (including Esplora or Electrum server via Tor onion address) and synchronizes the list of transactions received and available UTXOs. Based on this information `sweeptool` produces a PSBT which can be signed by an offline signing device or by the tool itself.
 
