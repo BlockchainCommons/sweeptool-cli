@@ -48,7 +48,15 @@ Make sure you have [Rust and Cargo](https://doc.rust-lang.org/cargo/getting-star
 
 ## Installation Instructions
 
-Download this repo and in the project root run:
+After downloading this repository, in order to compile `sweeptool` on Linux, libSSL1.1.1, provided by [OpenSSL 1.1.1](https://www.openssl.org/source/openssl-1.1.1t.tar.gz), is required. Debian distributions will provide this in the `libssl1.1` and `libssl-dev` packages. Verify that the header files are the correct version. 
+
+If you downloaded OpenSSL 1.1.1, compile `sweeptool` with a command in the form: 
+
+```sh
+OPENSSL_DIR=$HOME/openssl-1.1.1t OPENSSL_LIB_DIR=$HOME/openssl-1.1.1t cargo build
+```
+
+Otherwise, use:
 
 ```bash
 $ cargo run
