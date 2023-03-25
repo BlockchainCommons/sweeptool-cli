@@ -32,6 +32,7 @@ nigiri = []
 
 [dev-dependencies]
 assert_cmd = "0.10"
+cargo-deb = "1.42.2"
 predicates = "1"
 tempfile = "3"
 
